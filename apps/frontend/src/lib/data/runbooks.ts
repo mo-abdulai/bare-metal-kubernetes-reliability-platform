@@ -1,3 +1,12 @@
-import type { Runbook } from "@/types/runbooks";
-
-export const runbooks: Runbook[] = [];
+export const runbookFallbacks = [
+  "node-not-ready",
+  "crashloopbackoff",
+  "oomkilled",
+  "deployment-unavailable",
+  "service-no-endpoints",
+  "api-unavailable",
+  "pod-pending",
+  "high-memory",
+  "high-cpu",
+  "dns-resolution",
+];

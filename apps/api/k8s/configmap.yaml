@@ -14,3 +14,6 @@ data:
   PLATFORM_NAME: "Bare-Metal Kubernetes Reliability & Operations Platform"
   PROMETHEUS_URL: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
   LOKI_URL: "http://loki-gateway.logging.svc"
+  ALERTMANAGER_URL: "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
+  INCIDENT_DATA_DIR: "/app/data/incidents"
+  RUNBOOK_DIR: "/app/runbooks"

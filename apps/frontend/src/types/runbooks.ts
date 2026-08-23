@@ -3,7 +3,12 @@ export type RunbookStatus = "available" | "planned";
 export interface Runbook {
   id: string;
   title: string;
-  component: string;
-  status: RunbookStatus;
-  path?: string;
+  category: string;
+  linkedSignals: string[];
+  lastUpdated: string;
+  purpose: string;
+}
+
+export interface RunbookDetail extends Runbook {
+  content: string;
 }

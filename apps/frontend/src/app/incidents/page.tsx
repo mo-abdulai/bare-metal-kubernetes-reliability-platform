@@ -1,43 +1,95 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowRight, Clock, FileText } from "lucide-react";
+import Link from "next/link";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getMetricsSummaryResult, getRecentEventsResult, getRecentLogsResult } from "@/lib/api/opspulse";
-import { incidentSeverities, incidents } from "@/lib/data/incidents";
+import { getActiveAlertsResult, getIncidentCandidatesResult, getIncidentsResult, getSignalsResult } from "@/lib/api/opspulse";
+import { incidentSeverities } from "@/lib/data/incidents";
 import { severityClasses } from "@/lib/utils/styles";
+import type { Incident, IncidentCandidate, IncidentSeverity, Signal } from "@/types/incidents";
 
 export const dynamic = "force-dynamic";
 
+function duration(start: string, end?: string | null) {
+  const startMs = new Date(start).getTime();
+  const endMs = end ? new Date(end).getTime() : Date.now();
+  const minutes = Math.max(Math.round((endMs - startMs) / 60000), 0);
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+function severityBadge(severity: IncidentSeverity) {
+  return <span className={`rounded-md border px-2 py-1 text-xs font-medium ${severityClasses(severity)}`}>{severity}</span>;
+}
+
+function ActiveIncidentCard({ incident }: { incident: Incident }) {
+  return (
+    <Link href={`/incidents/${incident.id}`} className="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-400 dark:border-slate-800 dark:bg-surface-900">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-mono text-xs font-medium text-slate-500 dark:text-slate-400">{incident.id}</p>
+          <h3 className="mt-1 text-base font-semibold text-slate-950 dark:text-slate-50">{incident.title}</h3>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{incident.component}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {severityBadge(incident.severity)}
+          <StatusBadge status={incident.status === "Resolved" ? "connected" : "Documented"} label={incident.status} />
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 text-sm text-slate-600 dark:text-slate-400 sm:grid-cols-3">
+        <div>{incident.signals.length} signals</div>
+        <div>{incident.runbookId ? `Runbook: ${incident.runbookId}` : "No runbook selected"}</div>
+        <div className="flex items-center gap-1"><Clock className="h-4 w-4" /> {duration(incident.detectedAt, incident.resolvedAt)}</div>
+      </div>
+    </Link>
+  );
+}
+
+function CandidateCard({ candidate }: { candidate: IncidentCandidate }) {
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-surface-900">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Potential Incident</p>
+          <h3 className="mt-1 text-base font-semibold text-slate-950 dark:text-slate-50">{candidate.title}</h3>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{candidate.component}</p>
+        </div>
+        {severityBadge(candidate.severitySuggestion)}
+      </div>
+      <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
+        {candidate.signalCount} correlated signals - first seen {duration(candidate.firstSeen)} ago
+      </p>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Suggested runbook: {candidate.runbookId || "None"}</p>
+      <Link href={`/incidents/promote?candidate=${candidate.candidateId}`} className="mt-4 inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+        Review <ArrowRight className="h-4 w-4" />
+      </Link>
+    </article>
+  );
+}
+
+function SignalRow({ signal }: { signal: Signal }) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">{signal.source}</span>
+        {severityBadge(signal.severityHint)}
+        <span className="text-xs text-slate-500 dark:text-slate-400">{new Date(signal.timestamp).toLocaleString()}</span>
+      </div>
+      <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50">{signal.title}</p>
+      <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">{signal.message}</p>
+    </div>
+  );
+}
+
 export default async function IncidentsPage() {
-  const [metricsSummary, recentEvents, recentLogs] = await Promise.all([
-    getMetricsSummaryResult(),
-    getRecentEventsResult(),
-    getRecentLogsResult(),
+  const [incidents, candidates, signals, alerts] = await Promise.all([
+    getIncidentsResult(),
+    getIncidentCandidatesResult(),
+    getSignalsResult(),
+    getActiveAlertsResult(),
   ]);
-  const activeSignals = [
-    ...(metricsSummary.status === "connected" && metricsSummary.data.api.errorRatePerSecond > 0
-      ? [{ id: "api-5xx-rate", source: "Prometheus", label: "API 5xx rate", detail: `${metricsSummary.data.api.errorRatePerSecond}/s` }]
-      : []),
-    ...(recentEvents.status === "connected"
-      ? recentEvents.data
-          .filter((event) => event.type === "Warning")
-          .slice(0, 3)
-          .map((event) => ({
-            id: `${event.timestamp}-${event.reason}-${event.objectName}`,
-            source: "Kubernetes",
-            label: event.reason,
-            detail: `${event.objectKind} ${event.objectName}`,
-          }))
-      : []),
-    ...(recentLogs.status === "connected"
-      ? recentLogs.data.slice(0, 3).map((entry) => ({
-          id: `${entry.timestamp}-${entry.pod}-${entry.message}`,
-          source: "Loki",
-          label: `${entry.service} ${entry.level}`,
-          detail: entry.message,
-        }))
-      : []),
-  ];
+  const activeIncidents = incidents.status === "connected" ? incidents.data.filter((incident) => incident.status !== "Resolved") : [];
+  const recentSignals = signals.status === "connected" ? signals.data.slice(0, 8) : [];
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -45,77 +97,48 @@ export default async function IncidentsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-950 dark:text-slate-50">Incidents</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-            Incident records will appear here as reliability exercises and operational events are documented.
+            Signals are raw operational evidence. Incidents are reviewed issues promoted for investigation and tracking.
           </p>
         </div>
-        <StatusBadge status="Documented" label="No records" />
-      </section>
-
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
-        <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Severity Model</h2>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {incidentSeverities.map((severity) => (
-            <span key={severity} className={`rounded-md border px-2 py-1 text-xs font-medium ${severityClasses(severity)}`}>
-              {severity}
-            </span>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge status="Documented" label={`${incidentSeverities.length} severities`} />
+          <StatusBadge status={alerts.status === "connected" ? "connected" : "unavailable"} label={alerts.status === "connected" ? "Alerts Live" : "Alerts Unavailable"} />
+          <StatusBadge status={signals.status === "connected" ? "connected" : "unavailable"} label={signals.status === "connected" ? "Signals Live" : "Signals Unavailable"} />
         </div>
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Recent Signals</h2>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Raw operational evidence. Signals are not incidents until reviewed and promoted.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge status={metricsSummary.status === "connected" ? "connected" : "unavailable"} label={metricsSummary.status === "connected" ? "Metrics Live" : "Metrics Unavailable"} />
-            <StatusBadge status={recentLogs.status === "connected" ? "connected" : "unavailable"} label={recentLogs.status === "connected" ? "Logs Live" : "Logs Unavailable"} />
-          </div>
-        </div>
-        <div className="mt-4 space-y-3">
-          {activeSignals.length > 0 ? (
-            activeSignals.map((signal) => (
-              <div key={signal.id} className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
-                <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">{signal.source}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50">{signal.label}</p>
-                <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">{signal.detail}</p>
-              </div>
-            ))
+        <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Active Incidents</h2>
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          {activeIncidents.length > 0 ? (
+            activeIncidents.map((incident) => <ActiveIncidentCard key={incident.id} incident={incident} />)
           ) : (
-            <p className="text-sm text-slate-600 dark:text-slate-400">No recent alert, warning event, or error log signals returned.</p>
+            <EmptyState icon={<AlertTriangle className="h-10 w-10" />} title="No active incidents" description="Formal incidents appear here only after an operator reviews signals and promotes them." />
           )}
         </div>
       </section>
 
-      {incidents.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-surface-900">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-surface-850 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3">Incident ID</th>
-                  <th className="px-4 py-3">Title</th>
-                  <th className="px-4 py-3">Severity</th>
-                  <th className="px-4 py-3">Component</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Detected</th>
-                  <th className="px-4 py-3">Resolved</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800" />
-            </table>
-          </div>
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
+        <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Incident Candidates</h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Candidates are deterministic groups of related signals. Review is required before incident creation.</p>
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          {candidates.status === "connected" && candidates.data.length > 0 ? (
+            candidates.data.map((candidate) => <CandidateCard key={candidate.candidateId} candidate={candidate} />)
+          ) : (
+            <p className="text-sm text-slate-600 dark:text-slate-400">{candidates.status === "connected" ? "No incident candidates detected." : candidates.message}</p>
+          )}
         </div>
-      ) : (
-        <EmptyState
-          icon={<AlertTriangle aria-hidden="true" className="h-10 w-10" />}
-          title="No incidents recorded"
-          description="Incident records will appear here as reliability exercises and operational events are documented."
-        />
-      )}
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+          <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Recent Signals</h2>
+        </div>
+        <div className="mt-4 grid gap-3">
+          {recentSignals.length > 0 ? recentSignals.map((signal) => <SignalRow key={signal.id} signal={signal} />) : <p className="text-sm text-slate-600 dark:text-slate-400">No recent signals returned.</p>}
+        </div>
+      </section>
     </div>
   );
 }

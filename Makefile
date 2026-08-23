@@ -94,13 +94,13 @@ check-image-repo:
 	fi
 
 docker-build-api: check-image-repo
-	docker buildx build --platform linux/arm64 -t $(API_IMAGE) $(API_DIR)
+	docker buildx build --platform linux/arm64 -f $(API_DIR)/Dockerfile -t $(API_IMAGE) .
 
 docker-build-web: check-image-repo
 	docker buildx build --platform linux/arm64 -t $(WEB_IMAGE) $(WEB_DIR)
 
 docker-push-api: check-image-repo
-	docker buildx build --platform linux/arm64 -t $(API_IMAGE) --push $(API_DIR)
+	docker buildx build --platform linux/arm64 -f $(API_DIR)/Dockerfile -t $(API_IMAGE) --push .
 
 docker-push-web: check-image-repo
 	docker buildx build --platform linux/arm64 -t $(WEB_IMAGE) --push $(WEB_DIR)

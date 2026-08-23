@@ -11,7 +11,10 @@ class Settings(BaseSettings):
     orchestrator: str = "K3s"
     architecture: str = "ARM64"
     prometheus_url: str = "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    alertmanager_url: str = "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
     loki_url: str = "http://loki-gateway.logging.svc"
+    incident_data_dir: str = "data/incidents"
+    runbook_dir: str = "runbooks"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
