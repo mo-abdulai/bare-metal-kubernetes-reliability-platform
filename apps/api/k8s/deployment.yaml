@@ -24,7 +24,7 @@ spec:
       containers:
         - name: opspulse-api
           image: <DOCKERHUB_USERNAME>/opspulse-api:v0.1.0
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8000
