@@ -1,0 +1,113 @@
+# OpsPulse API
+
+OpsPulse API is the internal FastAPI backend for the Bare-Metal Kubernetes Reliability & Operations Platform. Phase 5 uses it for application and platform metadata only. It does not query Kubernetes, PostgreSQL, Prometheus, or any external dependency.
+
+## Architecture
+
+- FastAPI application under `app/`
+- Pydantic response models in `app/schemas/`
+- Health and readiness routes in `app/routes/health.py`
+- Platform status route in `app/routes/status.py`
+- Production Docker image based on `python:3.12-slim`
+- Kubernetes Deployment with two replicas
+- Internal ClusterIP Service named `opspulse-api`
+
+## Endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /` | Minimal service identity |
+| `GET /health` | Liveness check for the API process |
+| `GET /ready` | Readiness check for receiving traffic |
+| `GET /api/status` | Platform and API metadata consumed by OpsPulse Web |
+
+`/health` and `/ready` do not check databases, Kubernetes, internet access, or the frontend in Phase 5.
+
+## Environment Variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_NAME` | `OpsPulse API` | FastAPI application name |
+| `APP_VERSION` | `0.1.0` | API service version |
+| `ENVIRONMENT` | `local` | Runtime environment label |
+| `PLATFORM_NAME` | `Bare-Metal Kubernetes Reliability & Operations Platform` | Platform display name |
+
+No secrets are required for Phase 5.
+
+## Local Development
+
+```bash
+cd apps/api
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Run the frontend against the local API:
+
+```bash
+cd apps/frontend
+OPSPULSE_API_URL=http://localhost:8000 npm run dev
+```
+
+## Tests
+
+```bash
+cd apps/api
+pytest
+```
+
+The tests use FastAPI `TestClient` and do not require Kubernetes.
+
+## Docker
+
+```bash
+cd apps/api
+docker build -t opspulse-api:v0.1.0 .
+docker run --rm -p 8000:8000 opspulse-api:v0.1.0
+```
+
+ARM64 build and push:
+
+```bash
+docker buildx build \
+  --platform linux/arm64 \
+  -t <DOCKERHUB_USERNAME>/opspulse-api:v0.1.0 \
+  --push \
+  apps/api
+```
+
+Replace `<DOCKERHUB_USERNAME>` before publishing.
+
+## Kubernetes
+
+Apply the API resources after the `opspulse` namespace exists:
+
+```bash
+kubectl apply -f apps/api/k8s/configmap.yaml
+kubectl apply -f apps/api/k8s/deployment.yaml
+kubectl apply -f apps/api/k8s/service.yaml
+kubectl rollout status deployment/opspulse-api -n opspulse
+```
+
+Use `sudo k3s kubectl` instead of `kubectl` if that is the active cluster-management convention on the Raspberry Pi nodes.
+
+The API Service is internal only:
+
+```text
+http://opspulse-api:8000
+http://opspulse-api.opspulse.svc.cluster.local:8000
+```
+
+The Service type is `ClusterIP`; it is not exposed through NodePort, LoadBalancer, or Ingress.
+
+## Resource Controls
+
+The initial Raspberry Pi-friendly limits are:
+
+- requests: `50m` CPU, `64Mi` memory
+- limits: `250m` CPU, `256Mi` memory
+
+These are starting operational limits, not production-tuned values. Later Prometheus measurements should drive tuning.

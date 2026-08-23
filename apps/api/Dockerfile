@@ -1,0 +1,22 @@
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV APP_NAME="OpsPulse API"
+ENV APP_VERSION="0.1.0"
+ENV ENVIRONMENT="bare-metal"
+ENV PLATFORM_NAME="Bare-Metal Kubernetes Reliability & Operations Platform"
+
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 opspulse && adduser --system --uid 1001 --ingroup opspulse opspulse
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+COPY app ./app
+
+USER opspulse
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

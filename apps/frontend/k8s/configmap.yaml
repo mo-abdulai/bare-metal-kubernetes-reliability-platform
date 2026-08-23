@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opspulse-web-config
+  namespace: opspulse
+  labels:
+    app.kubernetes.io/name: opspulse-web
+    app.kubernetes.io/component: frontend
+data:
+  NEXT_PUBLIC_APP_NAME: "OpsPulse"
+  NEXT_PUBLIC_APP_VERSION: "0.1.0"
+  NEXT_PUBLIC_ENVIRONMENT: "bare-metal"
+  OPSPULSE_API_URL: "http://opspulse-api:8000"

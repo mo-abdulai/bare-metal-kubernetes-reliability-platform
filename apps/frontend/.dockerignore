@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+Dockerfile
+README.md
+docs
+k8s
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage
