@@ -291,8 +291,7 @@ export async function getPlatformStatusResult(): Promise<OpsPulseApiResult> {
       status: "connected",
       data: await getPlatformStatus(),
     };
-  } catch (error) {
-    console.error("OpsPulse API connectivity failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return {
       status: "unavailable",
       message: "OpsPulse API is currently unavailable.",
@@ -400,8 +399,7 @@ export async function getMetricsSummaryResult(): Promise<MetricsResult> {
       status: "connected",
       data: await getMetricsSummary(),
     };
-  } catch (error) {
-    console.error("Metrics proxy failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return {
       status: "unavailable",
       message: "Metrics service is currently unavailable.",
@@ -430,8 +428,7 @@ export async function getClusterInventoryResult(): Promise<LiveClusterResult> {
       status: "connected",
       data: await getClusterInventory(),
     };
-  } catch (error) {
-    console.error("Kubernetes inventory proxy failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return {
       status: "unavailable",
       message: "Kubernetes inventory is currently unavailable.",
@@ -486,8 +483,7 @@ export async function getRecentLogsResult(): Promise<LogsResult> {
       status: "connected",
       data: await getRecentLogs(),
     };
-  } catch (error) {
-    console.error("Loki logs proxy failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return {
       status: "unavailable",
       message: "Logs service is currently unavailable.",
@@ -516,8 +512,7 @@ export async function getRecentEventsResult(): Promise<EventsResult> {
       status: "connected",
       data: await getRecentEvents(),
     };
-  } catch (error) {
-    console.error("Kubernetes events proxy failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return {
       status: "unavailable",
       message: "Kubernetes events are currently unavailable.",
@@ -621,8 +616,7 @@ export async function getActiveAlertsResult(): Promise<AlertsResult> {
   try {
     const body = await requestJson<any[]>("/api/alerts/active", {}, 5000);
     return { status: "connected", data: body.map(normalizeAlert) };
-  } catch (error) {
-    console.error("Alertmanager proxy failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return { status: "unavailable", message: "Alerts are currently unavailable." };
   }
 }
@@ -631,8 +625,7 @@ export async function getSignalsResult(): Promise<SignalsResult> {
   try {
     const body = await requestJson<any[]>("/api/signals/recent?limit=30", {}, 7000);
     return { status: "connected", data: body.map(normalizeSignal) };
-  } catch (error) {
-    console.error("Signal aggregation failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return { status: "unavailable", message: "Signals are currently unavailable." };
   }
 }
@@ -641,8 +634,7 @@ export async function getIncidentCandidatesResult(): Promise<CandidatesResult> {
   try {
     const body = await requestJson<any[]>("/api/incidents/candidates", {}, 8000);
     return { status: "connected", data: body.map(normalizeCandidate) };
-  } catch (error) {
-    console.error("Incident candidate failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return { status: "unavailable", message: "Incident candidates are currently unavailable." };
   }
 }
@@ -651,8 +643,7 @@ export async function getIncidentsResult(): Promise<IncidentsResult> {
   try {
     const body = await requestJson<any[]>("/api/incidents", {}, 5000);
     return { status: "connected", data: body.map(normalizeIncident) };
-  } catch (error) {
-    console.error("Incident list failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return { status: "unavailable", message: "Incidents are currently unavailable." };
   }
 }
@@ -727,8 +718,7 @@ export async function getRunbooksResult(): Promise<RunbooksResult> {
   try {
     const body = await requestJson<any[]>("/api/runbooks", {}, 5000);
     return { status: "connected", data: body.map(normalizeRunbook) };
-  } catch (error) {
-    console.error("Runbook directory failure", error instanceof Error ? error.message : "unknown");
+  } catch {
     return { status: "unavailable", message: "Runbooks are currently unavailable." };
   }
 }
