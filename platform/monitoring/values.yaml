@@ -1,0 +1,185 @@
+# kube-prometheus-stack values for the two-node Raspberry Pi K3s cluster.
+# Pinned chart: prometheus-community/kube-prometheus-stack 88.2.0.
+# Sizing rationale:
+# - homepi: 4 CPU, ~7.6 GiB memory allocatable.
+# - workpi: 4 CPU, ~905 MiB memory allocatable and already memory-constrained.
+# Heavy single-replica components are scheduled to homepi. node-exporter remains
+# the only per-node monitoring DaemonSet so both nodes provide host metrics.
+
+fullnameOverride: kube-prometheus-stack
+
+defaultRules:
+  create: true
+  disabled:
+    KubeMemoryOvercommit: true
+    KubeCPUOvercommit: true
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    replicas: 1
+    retention: 24h
+    nodeSelector:
+      kubernetes.io/hostname: homepi
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    storage: {}
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ["namespace", "alertname"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: "null"
+    receivers:
+      - name: "null"
+
+grafana:
+  enabled: true
+  replicas: 1
+  adminUser: admin
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: browser
+  ingress:
+    enabled: false
+  persistence:
+    enabled: false
+  nodeSelector:
+    kubernetes.io/hostname: homepi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 384Mi
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: monitoring
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      isDefaultDatasource: true
+      name: Prometheus
+      uid: prometheus
+
+kube-state-metrics:
+  releaseLabel: true
+  nodeSelector:
+    kubernetes.io/hostname: homepi
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+nodeExporter:
+  enabled: true
+  operatingSystems:
+    linux:
+      enabled: true
+    aix:
+      enabled: false
+    darwin:
+      enabled: false
+
+prometheus-node-exporter:
+  releaseLabel: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 24Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+  prometheus:
+    monitor:
+      enabled: true
+      interval: 30s
+
+prometheusOperator:
+  enabled: true
+  nodeSelector:
+    kubernetes.io/hostname: homepi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
+  admissionWebhooks:
+    patch:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 50m
+          memory: 64Mi
+
+prometheus:
+  enabled: true
+  service:
+    type: ClusterIP
+  prometheusSpec:
+    replicas: 1
+    retention: 3d
+    retentionSize: 2GB
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    nodeSelector:
+      kubernetes.io/hostname: homepi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 384Mi
+      limits:
+        cpu: 500m
+        memory: 768Mi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 4Gi
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    podMonitorNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+    probeNamespaceSelector: {}
+
+kubeControllerManager:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false

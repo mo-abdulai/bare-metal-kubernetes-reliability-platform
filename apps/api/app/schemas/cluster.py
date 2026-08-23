@@ -11,6 +11,12 @@ class LiveNode(BaseModel):
     kubelet_version: str
     container_runtime: str
     internal_ip: str
+    cpu_capacity: str
+    cpu_allocatable: str
+    memory_capacity: str
+    memory_allocatable: str
+    storage_capacity: str
+    storage_allocatable: str
 
 
 class LiveDeployment(BaseModel):

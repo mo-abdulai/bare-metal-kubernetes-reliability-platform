@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opspulse-loki-datasource
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+    app.kubernetes.io/name: opspulse-loki-datasource
+    app.kubernetes.io/part-of: bare-metal-kubernetes-reliability-platform
+data:
+  loki-datasource.yaml: |-
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki-gateway.logging.svc
+        isDefault: false
+        jsonData:
+          maxLines: 500

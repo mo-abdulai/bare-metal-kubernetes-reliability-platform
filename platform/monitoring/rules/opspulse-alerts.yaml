@@ -1,0 +1,85 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: opspulse-platform-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: opspulse-alerts
+    app.kubernetes.io/part-of: bare-metal-kubernetes-reliability-platform
+spec:
+  groups:
+    - name: opspulse.platform
+      rules:
+        - alert: NodeDown
+          expr: up{job="node-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "node-exporter target is down"
+            description: "Prometheus has been unable to scrape node-exporter for {{ $labels.instance }} for 5 minutes."
+        - alert: KubernetesNodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Kubernetes node is not Ready"
+            description: "Node {{ $labels.node }} has not reported Ready for at least 5 minutes."
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod restart rate is elevated"
+            description: "Container {{ $labels.container }} in Pod {{ $labels.namespace }}/{{ $labels.pod }} restarted more than 3 times in 15 minutes."
+        - alert: DeploymentUnavailable
+          expr: kube_deployment_status_replicas_available < kube_deployment_spec_replicas
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Deployment has unavailable replicas"
+            description: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has fewer available replicas than desired."
+        - alert: HighNodeMemory
+          expr: 100 * (1 - ((node_memory_MemAvailable_bytes or node_memory_MemFree_bytes) / node_memory_MemTotal_bytes)) > 85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node memory usage is high"
+            description: "Node {{ $labels.instance }} memory usage has remained above 85% for 15 minutes."
+        - alert: HighNodeCPU
+          expr: 100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node CPU usage is high"
+            description: "Node {{ $labels.instance }} CPU usage has remained above 85% for 15 minutes."
+        - alert: HighDiskUsage
+          expr: max by (instance, mountpoint) (100 * (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|proc|sysfs|devtmpfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|proc|sysfs|devtmpfs"}))) > 85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node filesystem usage is high"
+            description: "Node {{ $labels.instance }} filesystem {{ $labels.mountpoint }} usage has remained above 85% for 15 minutes."
+        - alert: OpsPulseAPIDown
+          expr: up{job="opspulse-api"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "OpsPulse API metrics target is down"
+            description: "Prometheus cannot scrape the OpsPulse API metrics endpoint."
+        - alert: OpsPulseAPIHighErrorRate
+          expr: sum(rate(opspulse_api_http_requests_total{status_code=~"5.."}[5m])) > 0 and sum(rate(opspulse_api_http_requests_total[5m])) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "OpsPulse API 5xx error rate is elevated"
+            description: "OpsPulse API is returning 5xx responses while handling steady request traffic."

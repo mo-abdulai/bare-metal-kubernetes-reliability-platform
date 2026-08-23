@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     service_name: str = "opspulse-api"
     orchestrator: str = "K3s"
     architecture: str = "ARM64"
+    prometheus_url: str = "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    loki_url: str = "http://loki-gateway.logging.svc"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

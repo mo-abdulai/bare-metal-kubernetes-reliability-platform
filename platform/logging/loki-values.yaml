@@ -1,0 +1,125 @@
+# Grafana Loki values for the two-node Raspberry Pi K3s cluster.
+# Pinned chart: grafana/loki 7.3.0.
+# Sizing rationale:
+# - SingleBinary mode keeps Loki to one stateful process instead of distributed
+#   read/write/backend microservices.
+# - The pod is pinned to homepi because workpi has less than 1 GiB allocatable
+#   memory and was already around 58% memory used during preflight inspection.
+# - Retention is short and storage is bounded; this is operational correlation,
+#   not long-term log archival.
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    path_prefix: /var/loki
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: 2026-08-23
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  limits_config:
+    retention_period: 48h
+    reject_old_samples: true
+    reject_old_samples_max_age: 24h
+    ingestion_rate_mb: 2
+    ingestion_burst_size_mb: 4
+    max_query_length: 48h
+    max_query_parallelism: 2
+    split_queries_by_interval: 30m
+    volume_enabled: true
+  compactor:
+    working_directory: /var/loki/compactor
+    retention_enabled: true
+    retention_delete_delay: 2h
+    retention_delete_worker_count: 2
+    delete_request_store: filesystem
+  analytics:
+    reporting_enabled: false
+
+singleBinary:
+  replicas: 1
+  nodeSelector:
+    kubernetes.io/hostname: homepi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 2Gi
+
+gateway:
+  enabled: true
+  replicas: 1
+  verboseLogging: false
+  nodeSelector:
+    kubernetes.io/hostname: homepi
+  resources:
+    requests:
+      cpu: 10m
+      memory: 24Mi
+    limits:
+      cpu: 100m
+      memory: 96Mi
+
+chunksCache:
+  enabled: false
+
+resultsCache:
+  enabled: false
+
+lokiCanary:
+  enabled: false
+
+test:
+  enabled: false
+
+monitoring:
+  dashboards:
+    enabled: false
+  rules:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+ingester:
+  replicas: 0
+querier:
+  replicas: 0
+queryFrontend:
+  replicas: 0
+queryScheduler:
+  replicas: 0
+distributor:
+  replicas: 0
+compactor:
+  replicas: 0
+indexGateway:
+  replicas: 0
+bloomCompactor:
+  replicas: 0
+bloomGateway:
+  replicas: 0

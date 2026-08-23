@@ -19,6 +19,11 @@ const titles: Record<string, string> = {
 export function Topbar() {
   const pathname = usePathname();
   const title = titles[pathname] || "OpsPulse";
+  const liveDataRoutes = new Set(["/", "/infrastructure", "/workloads", "/services"]);
+  const sourceBadge =
+    liveDataRoutes.has(pathname)
+      ? { status: "connected" as const, label: "Live Kubernetes API" }
+      : { status: "Documented" as const, label: "Repository source" };
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-surface-950/90 sm:px-6">
@@ -33,7 +38,7 @@ export function Topbar() {
 
         <div className="flex items-center gap-2">
           <div className="hidden items-center gap-2 md:flex">
-            <StatusBadge status="Documented" label="Static source" />
+            <StatusBadge status={sourceBadge.status} label={sourceBadge.label} />
             <span className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300">
               Bare Metal
             </span>

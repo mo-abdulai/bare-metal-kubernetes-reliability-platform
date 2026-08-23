@@ -1,29 +1,45 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
 from app.logging_config import configure_logging
-from app.routes import cluster, health, status
+from app.metrics import PrometheusMetricsMiddleware, metrics_response
+from app.routes import cluster, health, logs, metrics as metrics_routes, status
 from app.schemas.status import RootResponse
 
 configure_logging()
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    logger.info("OpsPulse API startup environment=%s version=%s", settings.environment, settings.app_version)
+    yield
+
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="Internal API for OpsPulse platform metadata and future operations data.",
+    lifespan=lifespan,
 )
+app.add_middleware(PrometheusMetricsMiddleware)
 
 
 @app.get("/", response_model=RootResponse, tags=["identity"])
 def root() -> RootResponse:
     return RootResponse(service=settings.service_name, docs="/docs", health="/health")
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics() -> Response:
+    return metrics_response()
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -45,3 +61,5 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 app.include_router(health.router)
 app.include_router(status.router)
 app.include_router(cluster.router)
+app.include_router(metrics_routes.router)
+app.include_router(logs.router)

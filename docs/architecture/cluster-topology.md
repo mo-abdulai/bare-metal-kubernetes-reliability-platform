@@ -62,13 +62,14 @@ Verified from the platform description, the current environment supports:
 - replicated Next.js frontend workload
 - internal FastAPI backend workload
 - ClusterIP service discovery between application components
+- Prometheus-backed observability with node-exporter and kube-state-metrics
+- Alertmanager and custom Prometheus alert rules
+- project-specific Grafana operations dashboard
 - node-level reliability and failure testing workflows
 
 The following capabilities should be documented only after deployment and verification in later phases:
 
-- observability stack
 - centralized logging
-- alerting
 - GitOps automation
 - backup and recovery workflows
 - application-specific ingress and traffic management

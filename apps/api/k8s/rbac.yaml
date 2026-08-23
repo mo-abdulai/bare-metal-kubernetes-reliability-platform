@@ -19,7 +19,7 @@ rules:
     resources: ["nodes"]
     verbs: ["get", "list"]
   - apiGroups: [""]
-    resources: ["pods", "services", "endpoints"]
+    resources: ["pods", "services", "endpoints", "events"]
     verbs: ["get", "list"]
   - apiGroups: ["apps"]
     resources: ["deployments"]

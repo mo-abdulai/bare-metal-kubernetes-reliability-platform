@@ -2,7 +2,7 @@
 
 OpsPulse is the operational web interface for the Bare-Metal Kubernetes Reliability & Operations Platform. It is a Next.js App Router application that communicates with the internal OpsPulse API through server-side code.
 
-Phase 5 reads platform metadata from the FastAPI backend when it is available and keeps repository-backed static infrastructure information as a fallback. It does not query Kubernetes, Prometheus, a database, or any external telemetry source.
+OpsPulse reads platform metadata, Kubernetes inventory, and Prometheus-backed telemetry through the FastAPI backend. Browser-side code does not query Kubernetes or Prometheus directly.
 
 ## Architecture
 

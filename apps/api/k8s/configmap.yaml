@@ -12,3 +12,5 @@ data:
   APP_VERSION: "0.1.0"
   ENVIRONMENT: "bare-metal"
   PLATFORM_NAME: "Bare-Metal Kubernetes Reliability & Operations Platform"
+  PROMETHEUS_URL: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+  LOKI_URL: "http://loki-gateway.logging.svc"

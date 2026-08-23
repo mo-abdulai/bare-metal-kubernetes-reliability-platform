@@ -61,6 +61,18 @@ function TopologyNode({ node }: { node: ClusterNode }) {
           <dt className="text-slate-500 dark:text-slate-400">OS</dt>
           <dd className="font-medium text-slate-800 dark:text-slate-200">{node.operatingSystem}</dd>
         </div>
+        <div>
+          <dt className="text-slate-500 dark:text-slate-400">CPU</dt>
+          <dd className="font-medium text-slate-800 dark:text-slate-200">{node.cpu}</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500 dark:text-slate-400">Memory</dt>
+          <dd className="font-medium text-slate-800 dark:text-slate-200">{node.memory}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-slate-500 dark:text-slate-400">Storage</dt>
+          <dd className="font-medium text-slate-800 dark:text-slate-200">{node.storage}</dd>
+        </div>
       </dl>
     </article>
   );

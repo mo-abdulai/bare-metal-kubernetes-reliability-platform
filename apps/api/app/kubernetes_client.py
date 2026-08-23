@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import shlex
 import ssl
@@ -10,8 +11,10 @@ from pathlib import Path
 from typing import Any
 
 from app.schemas.cluster import LiveClusterInventory, LiveClusterSummary, LiveDeployment, LiveNode, LivePod, LiveService
+from app.schemas.logs import RecentEvent, RecentEventsResponse
 
 SERVICE_ACCOUNT_DIR = Path("/var/run/secrets/kubernetes.io/serviceaccount")
+logger = logging.getLogger(__name__)
 
 
 class KubernetesUnavailableError(RuntimeError):
@@ -77,6 +80,7 @@ class KubernetesClient:
             with urllib.request.urlopen(request, context=self.context, timeout=5) as response:
                 return json.loads(response.read().decode("utf-8"))
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            logger.warning("Kubernetes API request failed path=%s error=%s", path, exc.__class__.__name__)
             raise KubernetesUnavailableError("Kubernetes API request failed.") from exc
 
     def _get_json_with_kubectl(self, path: str) -> dict[str, Any]:
@@ -98,6 +102,8 @@ class KubernetesClient:
         elif path == f"/api/v1/namespaces/{namespace}/endpoints":
             resource = "endpoints"
             namespaced = True
+        elif path == "/api/v1/events":
+            resource = "events"
 
         if not resource:
             raise KubernetesUnavailableError(f"Unsupported Kubernetes inventory path: {path}")
@@ -111,6 +117,7 @@ class KubernetesClient:
             result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=10)
             return json.loads(result.stdout)
         except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as exc:
+            logger.warning("kubectl inventory request failed resource=%s error=%s", resource, exc.__class__.__name__)
             raise KubernetesUnavailableError("kubectl inventory request failed.") from exc
 
 
@@ -135,6 +142,62 @@ def _internal_ip(node: dict[str, Any]) -> str:
         if address.get("type") == "InternalIP":
             return address.get("address", "unknown")
     return "unknown"
+
+
+def _format_cpu(quantity: str | None) -> str:
+    if not quantity:
+        return "unknown"
+    if quantity.endswith("m"):
+        try:
+            millicores = int(quantity[:-1])
+        except ValueError:
+            return quantity
+        return f"{millicores / 1000:g} cores" if millicores >= 1000 else f"{millicores}m"
+    try:
+        cores = float(quantity)
+    except ValueError:
+        return quantity
+    return f"{cores:g} cores"
+
+
+def _format_binary_bytes(quantity: str | None) -> str:
+    if not quantity:
+        return "unknown"
+
+    suffixes = {
+        "Ki": 1024,
+        "Mi": 1024**2,
+        "Gi": 1024**3,
+        "Ti": 1024**4,
+        "K": 1000,
+        "M": 1000**2,
+        "G": 1000**3,
+        "T": 1000**4,
+    }
+    multiplier = 1
+    raw_number = quantity
+    for suffix, value in suffixes.items():
+        if quantity.endswith(suffix):
+            multiplier = value
+            raw_number = quantity[: -len(suffix)]
+            break
+
+    try:
+        bytes_value = float(raw_number) * multiplier
+    except ValueError:
+        return quantity
+
+    if bytes_value >= 1024**4:
+        return f"{bytes_value / 1024**4:.1f} TiB"
+    if bytes_value >= 1024**3:
+        return f"{bytes_value / 1024**3:.1f} GiB"
+    if bytes_value >= 1024**2:
+        return f"{bytes_value / 1024**2:.1f} MiB"
+    return f"{bytes_value / 1024:.1f} KiB"
+
+
+def _resource_value(node: dict[str, Any], section: str, key: str) -> str | None:
+    return node.get("status", {}).get(section, {}).get(key)
 
 
 def _pod_ready(pod: dict[str, Any]) -> bool:
@@ -163,6 +226,28 @@ def _endpoint_counts(endpoints: dict[str, Any]) -> dict[str, int]:
     return counts
 
 
+def _event_timestamp(event: dict[str, Any]) -> str:
+    return (
+        event.get("eventTime")
+        or event.get("lastTimestamp")
+        or event.get("firstTimestamp")
+        or event.get("metadata", {}).get("creationTimestamp")
+        or ""
+    )
+
+
+def _event_object(event: dict[str, Any]) -> dict[str, Any]:
+    return event.get("involvedObject", {})
+
+
+def _event_node(event: dict[str, Any]) -> str | None:
+    source = event.get("source", {})
+    if source.get("host"):
+        return source["host"]
+    reporting_instance = event.get("reportingInstance", "")
+    return reporting_instance if reporting_instance in {"homepi", "workpi"} else None
+
+
 def get_live_cluster_inventory() -> LiveClusterInventory:
     client = KubernetesClient()
     namespace = client.config.namespace
@@ -185,6 +270,12 @@ def get_live_cluster_inventory() -> LiveClusterInventory:
             kubelet_version=node.get("status", {}).get("nodeInfo", {}).get("kubeletVersion", "unknown"),
             container_runtime=node.get("status", {}).get("nodeInfo", {}).get("containerRuntimeVersion", "unknown"),
             internal_ip=_internal_ip(node),
+            cpu_capacity=_format_cpu(_resource_value(node, "capacity", "cpu")),
+            cpu_allocatable=_format_cpu(_resource_value(node, "allocatable", "cpu")),
+            memory_capacity=_format_binary_bytes(_resource_value(node, "capacity", "memory")),
+            memory_allocatable=_format_binary_bytes(_resource_value(node, "allocatable", "memory")),
+            storage_capacity=_format_binary_bytes(_resource_value(node, "capacity", "ephemeral-storage")),
+            storage_allocatable=_format_binary_bytes(_resource_value(node, "allocatable", "ephemeral-storage")),
         )
         for node in nodes_data.get("items", [])
     ]
@@ -245,3 +336,28 @@ def get_live_cluster_inventory() -> LiveClusterInventory:
         pods=pods,
         services=services,
     )
+
+
+def get_recent_kubernetes_events(limit: int = 10) -> RecentEventsResponse:
+    client = KubernetesClient()
+    events_data = client.get_json("/api/v1/events")
+    bounded_limit = min(max(limit, 1), 20)
+
+    events = []
+    for event in events_data.get("items", []):
+        involved = _event_object(event)
+        events.append(
+            RecentEvent(
+                timestamp=_event_timestamp(event),
+                type=event.get("type", "Unknown"),
+                reason=event.get("reason", "Unknown"),
+                object_kind=involved.get("kind", "Unknown"),
+                object_name=involved.get("name", "unknown"),
+                namespace=involved.get("namespace") or event.get("metadata", {}).get("namespace"),
+                node=_event_node(event),
+                message=(event.get("message") or "")[:500],
+            )
+        )
+
+    events.sort(key=lambda item: item.timestamp, reverse=True)
+    return RecentEventsResponse(status="ok", events=events[:bounded_limit])

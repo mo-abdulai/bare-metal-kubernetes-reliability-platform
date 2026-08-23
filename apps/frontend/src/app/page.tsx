@@ -1,8 +1,15 @@
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { ClusterTopology } from "@/components/dashboard/cluster-topology";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { RelativeTime } from "@/components/ui/relative-time";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getClusterInventoryResult, getPlatformStatusResult } from "@/lib/api/opspulse";
+import {
+  getClusterInventoryResult,
+  getMetricsSummaryResult,
+  getPlatformStatusResult,
+  getRecentEventsResult,
+  getRecentLogsResult,
+} from "@/lib/api/opspulse";
 import { clusterNodes, platformActivity, platformCapabilities, platformSummary } from "@/lib/data/infrastructure";
 import type { ClusterNode, NodeRole, NodeStatus, PlatformActivity } from "@/types/infrastructure";
 
@@ -26,6 +33,12 @@ function liveNodesToTopologyNodes(nodes: Array<{
   kubeletVersion: string;
   containerRuntime: string;
   internalIp: string;
+  cpuCapacity: string;
+  cpuAllocatable: string;
+  memoryCapacity: string;
+  memoryAllocatable: string;
+  storageCapacity: string;
+  storageAllocatable: string;
 }>): ClusterNode[] {
   return nodes.map((node) => ({
     id: node.name,
@@ -33,9 +46,9 @@ function liveNodesToTopologyNodes(nodes: Array<{
     role: normalizeNodeRole(node.role),
     architecture: node.architecture,
     operatingSystem: node.osImage,
-    cpu: "Capacity not collected",
-    memory: "Capacity not collected",
-    storage: "Capacity not collected",
+    cpu: `${node.cpuCapacity} / ${node.cpuAllocatable} allocatable`,
+    memory: `${node.memoryCapacity} / ${node.memoryAllocatable} allocatable`,
+    storage: `${node.storageCapacity} / ${node.storageAllocatable} allocatable`,
     k3sVersion: node.kubeletVersion,
     networkAddress: node.internalIp,
     status: normalizeNodeStatus(node.status),
@@ -44,10 +57,19 @@ function liveNodesToTopologyNodes(nodes: Array<{
 }
 
 export default async function OverviewPage() {
-  const [apiStatus, clusterInventory] = await Promise.all([getPlatformStatusResult(), getClusterInventoryResult()]);
+  const [apiStatus, clusterInventory, metricsSummary, recentLogs, recentEvents] = await Promise.all([
+    getPlatformStatusResult(),
+    getClusterInventoryResult(),
+    getMetricsSummaryResult(),
+    getRecentLogsResult(),
+    getRecentEventsResult(),
+  ]);
   const platform =
     apiStatus.status === "connected"
-      ? apiStatus.data.platform
+      ? {
+          ...apiStatus.data.platform,
+          environment: "bare-metal",
+        }
       : {
           name: "Bare-Metal Kubernetes Reliability & Operations Platform",
           environment: "bare-metal",
@@ -88,7 +110,10 @@ export default async function OverviewPage() {
   const liveDeployments = clusterInventory.status === "connected" ? clusterInventory.data.deployments : [];
   const livePods = clusterInventory.status === "connected" ? clusterInventory.data.pods : [];
   const liveServices = clusterInventory.status === "connected" ? clusterInventory.data.services : [];
-  const liveActivity: PlatformActivity[] =
+  const metricsUpdatedAt = metricsSummary.status === "connected" ? new Date().toISOString() : null;
+  const metricNodes = metricsSummary.status === "connected" ? metricsSummary.data.nodes : [];
+  const apiMetrics = metricsSummary.status === "connected" ? metricsSummary.data.api : null;
+  const liveEvents: PlatformActivity[] =
     clusterInventory.status === "connected"
       ? [
           ...liveDeployments.map((deployment) => ({
@@ -104,7 +129,7 @@ export default async function OverviewPage() {
             status: "completed" as const,
           })),
         ]
-      : platformActivity;
+      : [];
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -121,9 +146,11 @@ export default async function OverviewPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <StatusBadge status="Documented" label={`${platform.environment} · ${platform.architecture} · ${platform.orchestrator}`} />
+            <StatusBadge status="Documented" label={`bare-metal · ${platform.architecture} · ${platform.orchestrator}`} />
             <StatusBadge status={apiStatus.status === "connected" ? "connected" : "unavailable"} label={apiStatus.status === "connected" ? "Backend Connected" : "Backend Unavailable"} />
-            <StatusBadge status={clusterInventory.status === "connected" ? "connected" : "unavailable"} label={clusterInventory.status === "connected" ? "Live Cluster Data" : "Inventory Unavailable"} />
+            <StatusBadge status={clusterInventory.status === "connected" ? "connected" : "unavailable"} label={clusterInventory.status === "connected" ? "Live Kubernetes API" : "Inventory Unavailable"} />
+            <StatusBadge status={metricsSummary.status === "connected" ? "connected" : "unavailable"} label={metricsSummary.status === "connected" ? "Prometheus Connected" : "Metrics Unavailable"} />
+            <StatusBadge status={recentLogs.status === "connected" ? "connected" : "unavailable"} label={recentLogs.status === "connected" ? "Logs Live" : "Logs Unavailable"} />
           </div>
         </div>
       </section>
@@ -166,6 +193,44 @@ export default async function OverviewPage() {
         sourceLabel={clusterInventory.status === "connected" ? `K3s Cluster · live ${clusterInventory.data.namespace} inventory` : "K3s Cluster · repository fallback"}
         sourceStatus={clusterInventory.status === "connected" ? "connected" : "Documented"}
       />
+
+      <section aria-label="Prometheus node utilization" className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Live Resource Utilization</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Usage percentages come from Prometheus node-exporter metrics. Capacity remains listed in node details.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <StatusBadge status={metricsSummary.status === "connected" ? "connected" : "unavailable"} label={metricsSummary.status === "connected" ? "Metrics Live" : "Metrics Unavailable"} />
+            {metricsUpdatedAt ? <RelativeTime value={metricsUpdatedAt} /> : null}
+          </div>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {metricNodes.length > 0 ? (
+            metricNodes.map((node) => (
+              <article key={node.name} className="rounded-md border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-surface-850">
+                <h3 className="text-sm font-semibold text-slate-950 dark:text-slate-50">{node.name}</h3>
+                <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <dt className="text-xs uppercase text-slate-500 dark:text-slate-400">CPU used</dt>
+                    <dd className="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">{node.cpuPercent}%</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase text-slate-500 dark:text-slate-400">Memory used</dt>
+                    <dd className="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">{node.memoryPercent}%</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase text-slate-500 dark:text-slate-400">Filesystem used</dt>
+                    <dd className="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">{node.filesystemPercent}%</dd>
+                  </div>
+                </dl>
+              </article>
+            ))
+          ) : (
+            <p className="text-sm text-slate-600 dark:text-slate-400">Prometheus utilization metrics are unavailable.</p>
+          )}
+        </div>
+      </section>
 
       <section aria-label="Live operational snapshot" className="grid gap-4 xl:grid-cols-3">
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
@@ -230,6 +295,84 @@ export default async function OverviewPage() {
         </div>
       </section>
 
+      <section aria-label="OpsPulse API metrics" className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">OpsPulse API Metrics</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Request telemetry from the FastAPI `/metrics` endpoint scraped by Prometheus.</p>
+          </div>
+          <StatusBadge status={apiMetrics?.up ? "connected" : "unavailable"} label={apiMetrics?.up ? "Scrape Up" : "Scrape Unavailable"} />
+        </div>
+        <dl className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
+            <dt className="text-xs uppercase text-slate-500 dark:text-slate-400">Request rate</dt>
+            <dd className="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">{apiMetrics ? `${apiMetrics.requestRatePerSecond}/s` : "Unavailable"}</dd>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
+            <dt className="text-xs uppercase text-slate-500 dark:text-slate-400">5xx rate</dt>
+            <dd className="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">{apiMetrics ? `${apiMetrics.errorRatePerSecond}/s` : "Unavailable"}</dd>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
+            <dt className="text-xs uppercase text-slate-500 dark:text-slate-400">p95 duration</dt>
+            <dd className="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">{apiMetrics?.p95DurationSeconds != null ? `${apiMetrics.p95DurationSeconds}s` : "Unavailable"}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-label="Recent operational events" className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Recent Operational Events</h2>
+            <StatusBadge status={recentEvents.status === "connected" ? "connected" : "unavailable"} label={recentEvents.status === "connected" ? "Events Live" : "Events Unavailable"} />
+          </div>
+          <div className="mt-4 space-y-3">
+            {recentEvents.status === "connected" && recentEvents.data.length > 0 ? (
+              recentEvents.data.slice(0, 5).map((event) => (
+                <div key={`${event.timestamp}-${event.reason}-${event.objectName}`} className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{new Date(event.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <StatusBadge status={event.type === "Warning" ? "unavailable" : "Documented"} label={event.type} />
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">{event.reason}</p>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{event.objectKind} {event.objectName}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{event.message}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {recentEvents.status === "connected" ? "No recent Kubernetes events returned." : "Kubernetes events are currently unavailable."}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Recent Log Signals</h2>
+            <StatusBadge status={recentLogs.status === "connected" ? "connected" : "unavailable"} label={recentLogs.status === "connected" ? "Loki Connected" : "Logs Unavailable"} />
+          </div>
+          <div className="mt-4 space-y-3">
+            {recentLogs.status === "connected" && recentLogs.data.length > 0 ? (
+              recentLogs.data.slice(0, 5).map((entry) => (
+                <div key={`${entry.timestamp}-${entry.pod}-${entry.message}`} className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <StatusBadge status={entry.level === "error" ? "unavailable" : "Documented"} label={entry.level.toUpperCase()} />
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">{entry.service}</p>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">{entry.message}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{entry.pod || "unknown pod"} · {entry.node || "unknown node"}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {recentLogs.status === "connected" ? "No recent error-level log signals returned." : "Loki is currently unavailable."}
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
           <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Current Platform Capabilities</h2>
@@ -245,7 +388,18 @@ export default async function OverviewPage() {
           </ul>
         </section>
 
-        <ActivityFeed activity={liveActivity} />
+        <div className="grid gap-6">
+          <ActivityFeed
+            activity={liveEvents}
+            title="Live Events"
+            description={clusterInventory.status === "connected" ? "Current deployment and pod readiness from the Kubernetes API." : "Live Kubernetes events are unavailable while inventory is disconnected."}
+          />
+          <ActivityFeed
+            activity={platformActivity}
+            title="Project Milestones"
+            description="Repository-backed implementation milestones and validation history."
+          />
+        </div>
       </div>
     </div>
   );

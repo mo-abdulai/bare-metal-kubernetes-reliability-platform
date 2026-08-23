@@ -40,8 +40,14 @@ Current verified-by-source capabilities include:
 - internal `opspulse-api` ClusterIP Service manifest
 - server-only frontend API configuration through `OPSPULSE_API_URL`
 - graceful frontend behavior when the backend API is unavailable
+- Prometheus, Grafana, Alertmanager, node-exporter, kube-state-metrics, and Prometheus Operator deployed through `kube-prometheus-stack`
+- FastAPI `/metrics` instrumentation
+- Prometheus-backed OpsPulse node utilization and API telemetry
+- custom Grafana dashboard and Prometheus alert rules
 
 See [`apps/frontend/README.md`](apps/frontend/README.md), [`apps/api/README.md`](apps/api/README.md), and [`docs/application/`](docs/application/) for local development, Docker usage, Kubernetes deployment files, and service-discovery details.
+
+Phase 6 monitoring configuration is maintained in [`platform/monitoring/`](platform/monitoring/).
 
 ## Repository Structure
 

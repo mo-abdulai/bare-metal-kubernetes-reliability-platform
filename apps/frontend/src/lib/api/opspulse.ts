@@ -34,6 +34,12 @@ export interface LiveClusterInventory {
     kubeletVersion: string;
     containerRuntime: string;
     internalIp: string;
+    cpuCapacity: string;
+    cpuAllocatable: string;
+    memoryCapacity: string;
+    memoryAllocatable: string;
+    storageCapacity: string;
+    storageAllocatable: string;
   }>;
   deployments: Array<{
     name: string;
@@ -62,6 +68,61 @@ export interface LiveClusterInventory {
   }>;
 }
 
+export interface MetricsSummary {
+  status: "connected";
+  nodes: Array<{
+    name: string;
+    cpuPercent: number;
+    memoryPercent: number;
+    filesystemPercent: number;
+  }>;
+  deployments: Array<{
+    namespace: string;
+    name: string;
+    desired: number;
+    available: number;
+    unavailable: number;
+  }>;
+  podRestarts: Array<{
+    namespace: string;
+    pod: string;
+    container: string;
+    restarts: number;
+  }>;
+  podPhases: Array<{
+    phase: string;
+    count: number;
+  }>;
+  api: {
+    up: boolean;
+    requestRatePerSecond: number;
+    errorRatePerSecond: number;
+    p95DurationSeconds: number | null;
+  };
+}
+
+export interface RecentOperationalLog {
+  timestamp: string;
+  service: string;
+  level: string;
+  namespace: string | null;
+  pod: string | null;
+  container: string | null;
+  node: string | null;
+  message: string;
+}
+
+export interface RecentKubernetesEvent {
+  timestamp: string;
+  type: string;
+  reason: string;
+  objectKind: string;
+  objectName: string;
+  namespace: string | null;
+  node: string | null;
+  message: string;
+}
+
 export type OpsPulseApiResult =
   | {
       status: "connected";
@@ -76,6 +137,36 @@ export type LiveClusterResult =
   | {
       status: "connected";
       data: LiveClusterInventory;
+    }
+  | {
+      status: "unavailable";
+      message: string;
+    };
+
+export type MetricsResult =
+  | {
+      status: "connected";
+      data: MetricsSummary;
+    }
+  | {
+      status: "unavailable";
+      message: string;
+    };
+
+export type LogsResult =
+  | {
+      status: "connected";
+      data: RecentOperationalLog[];
+    }
+  | {
+      status: "unavailable";
+      message: string;
+    };
+
+export type EventsResult =
+  | {
+      status: "connected";
+      data: RecentKubernetesEvent[];
     }
   | {
       status: "unavailable";
@@ -129,7 +220,8 @@ export async function getPlatformStatusResult(): Promise<OpsPulseApiResult> {
       status: "connected",
       data: await getPlatformStatus(),
     };
-  } catch {
+  } catch (error) {
+    console.error("OpsPulse API connectivity failure", error instanceof Error ? error.message : "unknown");
     return {
       status: "unavailable",
       message: "OpsPulse API is currently unavailable.",
@@ -160,6 +252,12 @@ function normalizeClusterInventory(body: any): LiveClusterInventory {
       kubeletVersion: node.kubelet_version,
       containerRuntime: node.container_runtime,
       internalIp: node.internal_ip,
+      cpuCapacity: node.cpu_capacity,
+      cpuAllocatable: node.cpu_allocatable,
+      memoryCapacity: node.memory_capacity,
+      memoryAllocatable: node.memory_allocatable,
+      storageCapacity: node.storage_capacity,
+      storageAllocatable: node.storage_allocatable,
     })),
     deployments: body.deployments,
     pods: body.pods.map((pod: any) => ({
@@ -179,6 +277,65 @@ function normalizeClusterInventory(body: any): LiveClusterInventory {
       readyEndpoints: service.ready_endpoints,
     })),
   };
+}
+
+function normalizeMetricsSummary(body: any): MetricsSummary {
+  return {
+    status: "connected",
+    nodes: body.nodes.map((node: any) => ({
+      name: node.name,
+      cpuPercent: node.cpu_percent,
+      memoryPercent: node.memory_percent,
+      filesystemPercent: node.filesystem_percent,
+    })),
+    deployments: body.deployments,
+    podRestarts: body.pod_restarts.map((restart: any) => ({
+      namespace: restart.namespace,
+      pod: restart.pod,
+      container: restart.container,
+      restarts: restart.restarts,
+    })),
+    podPhases: body.pod_phases.map((phase: any) => ({
+      phase: phase.phase,
+      count: phase.count,
+    })),
+    api: {
+      up: body.api.up,
+      requestRatePerSecond: body.api.request_rate_per_second,
+      errorRatePerSecond: body.api.error_rate_per_second,
+      p95DurationSeconds: body.api.p95_duration_seconds,
+    },
+  };
+}
+
+export async function getMetricsSummary(): Promise<MetricsSummary> {
+  const baseUrl = getApiBaseUrl();
+  const response = await fetchWithTimeout(`${baseUrl}/api/metrics/summary`, {
+    headers: {
+      accept: "application/json",
+    },
+  }, 5000);
+
+  if (!response.ok) {
+    throw new OpsPulseApiError(`Metrics API returned HTTP ${response.status}.`);
+  }
+
+  return normalizeMetricsSummary(await response.json());
+}
+
+export async function getMetricsSummaryResult(): Promise<MetricsResult> {
+  try {
+    return {
+      status: "connected",
+      data: await getMetricsSummary(),
+    };
+  } catch (error) {
+    console.error("Metrics proxy failure", error instanceof Error ? error.message : "unknown");
+    return {
+      status: "unavailable",
+      message: "Metrics service is currently unavailable.",
+    };
+  }
 }
 
 export async function getClusterInventory(): Promise<LiveClusterInventory> {
@@ -202,10 +359,97 @@ export async function getClusterInventoryResult(): Promise<LiveClusterResult> {
       status: "connected",
       data: await getClusterInventory(),
     };
-  } catch {
+  } catch (error) {
+    console.error("Kubernetes inventory proxy failure", error instanceof Error ? error.message : "unknown");
     return {
       status: "unavailable",
       message: "Kubernetes inventory is currently unavailable.",
+    };
+  }
+}
+
+function normalizeRecentLogs(body: any): RecentOperationalLog[] {
+  return body.entries.map((entry: any) => ({
+    timestamp: entry.timestamp,
+    service: entry.service,
+    level: entry.level,
+    namespace: entry.namespace,
+    pod: entry.pod,
+    container: entry.container,
+    node: entry.node,
+    message: entry.message,
+  }));
+}
+
+function normalizeRecentEvents(body: any): RecentKubernetesEvent[] {
+  return body.events.map((event: any) => ({
+    timestamp: event.timestamp,
+    type: event.type,
+    reason: event.reason,
+    objectKind: event.object_kind,
+    objectName: event.object_name,
+    namespace: event.namespace,
+    node: event.node,
+    message: event.message,
+  }));
+}
+
+export async function getRecentLogs(): Promise<RecentOperationalLog[]> {
+  const baseUrl = getApiBaseUrl();
+  const response = await fetchWithTimeout(`${baseUrl}/api/logs/recent?limit=10`, {
+    headers: {
+      accept: "application/json",
+    },
+  }, 5000);
+
+  if (!response.ok) {
+    throw new OpsPulseApiError(`Logs API returned HTTP ${response.status}.`);
+  }
+
+  return normalizeRecentLogs(await response.json());
+}
+
+export async function getRecentLogsResult(): Promise<LogsResult> {
+  try {
+    return {
+      status: "connected",
+      data: await getRecentLogs(),
+    };
+  } catch (error) {
+    console.error("Loki logs proxy failure", error instanceof Error ? error.message : "unknown");
+    return {
+      status: "unavailable",
+      message: "Logs service is currently unavailable.",
+    };
+  }
+}
+
+export async function getRecentEvents(): Promise<RecentKubernetesEvent[]> {
+  const baseUrl = getApiBaseUrl();
+  const response = await fetchWithTimeout(`${baseUrl}/api/events/recent?limit=10`, {
+    headers: {
+      accept: "application/json",
+    },
+  }, 5000);
+
+  if (!response.ok) {
+    throw new OpsPulseApiError(`Events API returned HTTP ${response.status}.`);
+  }
+
+  return normalizeRecentEvents(await response.json());
+}
+
+export async function getRecentEventsResult(): Promise<EventsResult> {
+  try {
+    return {
+      status: "connected",
+      data: await getRecentEvents(),
+    };
+  } catch (error) {
+    console.error("Kubernetes events proxy failure", error instanceof Error ? error.message : "unknown");
+    return {
+      status: "unavailable",
+      message: "Kubernetes events are currently unavailable.",
     };
   }
 }

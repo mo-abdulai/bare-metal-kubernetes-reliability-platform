@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opspulse-logs-events-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: opspulse-logs-events-dashboard
+    app.kubernetes.io/part-of: bare-metal-kubernetes-reliability-platform
+data:
+  opspulse-logs-events.json: |-
+    {
+      "uid": "opspulse-logs-events",
+      "title": "OpsPulse — Logs & Events",
+      "tags": ["opspulse", "logs", "events"],
+      "timezone": "browser",
+      "schemaVersion": 41,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "query",
+            "datasource": { "type": "loki", "uid": "loki" },
+            "query": "label_values(namespace)",
+            "current": { "text": "opspulse", "value": "opspulse", "selected": true },
+            "includeAll": false,
+            "refresh": 1
+          },
+          {
+            "name": "pod",
+            "type": "query",
+            "datasource": { "type": "loki", "uid": "loki" },
+            "query": "label_values({namespace=\"$namespace\"}, pod)",
+            "current": { "text": "All", "value": ".*", "selected": true },
+            "includeAll": true,
+            "allValue": ".*",
+            "refresh": 1
+          },
+          {
+            "name": "container",
+            "type": "query",
+            "datasource": { "type": "loki", "uid": "loki" },
+            "query": "label_values({namespace=\"$namespace\"}, container)",
+            "current": { "text": "All", "value": ".*", "selected": true },
+            "includeAll": true,
+            "allValue": ".*",
+            "refresh": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Application Errors",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{namespace=\"opspulse\", app=~\"opspulse-api|opspulse-web\"} |~ \"(?i)(error|failed|failure|timeout|unavailable|exception)\""
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Kubernetes Warnings",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": true,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{source=\"event\", job=\"kubernetes-events\"} | json | type=\"Warning\""
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Pod Logs by Workload",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{namespace=\"$namespace\", pod=~\"$pod\", container=~\"$container\"}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Node / Placement Context",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{namespace=\"$namespace\", node=~\"homepi|workpi\"}"
+            }
+          ]
+        }
+      ]
+    }

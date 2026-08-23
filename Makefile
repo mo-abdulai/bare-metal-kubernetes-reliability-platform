@@ -13,8 +13,12 @@ IMAGE_TAG ?= v0.1.0
 API_IMAGE ?= $(IMAGE_REPO)/opspulse-api:$(IMAGE_TAG)
 WEB_IMAGE ?= $(IMAGE_REPO)/opspulse-web:$(IMAGE_TAG)
 KUBECTL ?= kubectl
+HELM ?= helm
+MONITORING_CHART_VERSION ?= 88.2.0
+LOKI_CHART_VERSION ?= 7.3.0
+ALLOY_CHART_VERSION ?= 1.11.1
 
-.PHONY: help setup setup-api setup-web start dev api web test lint build docker-build-api docker-build-web docker-push-api docker-push-web docker-push deploy-namespace deploy-api deploy-web deploy-web-config deploy status clean check-image-repo
+.PHONY: help setup setup-api setup-web start dev api web test lint build docker-build-api docker-build-web docker-push-api docker-push-web docker-push deploy-namespace deploy-api deploy-web deploy-web-config deploy deploy-monitoring deploy-logging monitoring-status logging-status status clean check-image-repo
 
 help:
 	@echo "OpsPulse local development"
@@ -29,6 +33,8 @@ help:
 	@echo "  make lint       Run frontend lint"
 	@echo "  make build      Build the frontend"
 	@echo "  make deploy     Deploy namespace, web, API, and service discovery config"
+	@echo "  make deploy-monitoring  Install or upgrade the Phase 6 monitoring stack"
+	@echo "  make deploy-logging     Install or upgrade the Phase 7 logging stack"
 	@echo "  make status     Show OpsPulse Kubernetes resources"
 	@echo ""
 	@echo "Config overrides:"
@@ -125,6 +131,59 @@ deploy-web-config:
 	fi
 
 deploy: deploy-api deploy-web status
+
+deploy-monitoring:
+	$(KUBECTL) apply -f platform/monitoring/namespace.yaml
+	$(HELM) repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	$(HELM) repo add grafana https://grafana.github.io/helm-charts
+	$(HELM) repo update
+	$(HELM) upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		--version $(MONITORING_CHART_VERSION) \
+		--namespace monitoring \
+		--create-namespace \
+		--values platform/monitoring/values.yaml
+	$(KUBECTL) apply -f platform/monitoring/servicemonitor-opspulse-api.yaml
+	$(KUBECTL) apply -f platform/monitoring/rules/opspulse-alerts.yaml
+	$(KUBECTL) apply -f platform/monitoring/dashboards/opspulse-operations-dashboard.yaml
+	$(KUBECTL) rollout status deployment/kube-prometheus-stack-operator -n monitoring
+	$(KUBECTL) rollout status deployment/kube-prometheus-stack-grafana -n monitoring
+	$(KUBECTL) rollout status deployment/kube-prometheus-stack-kube-state-metrics -n monitoring
+	$(KUBECTL) rollout status daemonset/kube-prometheus-stack-prometheus-node-exporter -n monitoring
+	$(KUBECTL) rollout status statefulset/alertmanager-kube-prometheus-stack-alertmanager -n monitoring
+	$(KUBECTL) rollout status statefulset/prometheus-kube-prometheus-stack-prometheus -n monitoring
+	$(MAKE) monitoring-status
+
+deploy-logging:
+	$(KUBECTL) apply -f platform/logging/namespace.yaml
+	$(HELM) repo add grafana https://grafana.github.io/helm-charts
+	$(HELM) repo update
+	$(HELM) upgrade --install loki grafana/loki \
+		--version $(LOKI_CHART_VERSION) \
+		--namespace logging \
+		--values platform/logging/loki-values.yaml
+	$(HELM) upgrade --install alloy grafana/alloy \
+		--version $(ALLOY_CHART_VERSION) \
+		--namespace logging \
+		--values platform/logging/alloy-values.yaml
+	$(KUBECTL) apply -f platform/logging/loki-datasource.yaml
+	$(KUBECTL) apply -f platform/logging/dashboards/opspulse-logs-events-dashboard.yaml
+	$(KUBECTL) rollout status statefulset/loki -n logging
+	$(KUBECTL) rollout status deployment/alloy -n logging
+	$(MAKE) logging-status
+
+monitoring-status:
+	$(KUBECTL) get pods -n monitoring -o wide
+	$(KUBECTL) get svc -n monitoring
+	$(KUBECTL) get deployments -n monitoring
+	$(KUBECTL) get daemonsets -n monitoring
+	$(KUBECTL) get statefulsets -n monitoring
+
+logging-status:
+	$(KUBECTL) get pods -n logging -o wide
+	$(KUBECTL) get svc -n logging
+	$(KUBECTL) get deployments -n logging
+	$(KUBECTL) get statefulsets -n logging
+	$(KUBECTL) get pvc -n logging
 
 status:
 	$(KUBECTL) get deployments -n opspulse
