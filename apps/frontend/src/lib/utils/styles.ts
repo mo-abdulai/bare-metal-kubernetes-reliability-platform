@@ -3,20 +3,31 @@ import type { IncidentSeverity } from "@/types/incidents";
 import type { ServiceHealth } from "@/types/services";
 
 export function nodeStatusLabel(status: NodeStatus) {
+  if (status === "ready") {
+    return "Ready";
+  }
+
+  if (status === "not-ready") {
+    return "Not Ready";
+  }
+
   return status === "documented" ? "Documented" : status === "configured" ? "Configured" : "Unknown";
 }
 
-export function statusClasses(status: NodeStatus | ServiceHealth | "Static" | "Verified" | "Documented") {
+export function statusClasses(status: NodeStatus | ServiceHealth | "Static" | "Verified" | "Documented" | "Ready") {
   switch (status) {
     case "documented":
     case "Documented":
       return "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-200";
     case "configured":
     case "Verified":
+    case "Ready":
+    case "ready":
     case "connected":
     case "ok":
       return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200";
     case "unavailable":
+    case "not-ready":
       return "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-200";
     case "not-checked":
     case "Static":

@@ -35,15 +35,29 @@ Verify the frontend remains functional if another healthy API endpoint stays ava
 
 ## Evidence
 
-Not yet executed in this repository session.
+- Date: 2026-08-23
+- Deleted Pod: `opspulse-api-7d4fc7657-dh228`
+- Replacement Pod: `opspulse-api-7d4fc7657-nb4qp`
+- Final API Pods:
+
+```text
+opspulse-api-7d4fc7657-hdnkf   1/1   Running   homepi
+opspulse-api-7d4fc7657-nb4qp   1/1   Running   workpi
+```
+
+- Final API endpoints:
+
+```text
+10.42.0.36:8000,10.42.1.33:8000
+```
 
 ## Observed Behavior
 
-Pending cluster deployment validation.
+Kubernetes created a replacement API Pod after one Pod was deleted. The Deployment returned to two Ready replicas and the ClusterIP Service returned to two ready endpoints.
 
 ## Result
 
-Pending.
+Passed.
 
 ## Operational Significance
 

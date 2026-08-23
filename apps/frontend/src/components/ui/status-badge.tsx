@@ -4,7 +4,7 @@ import { statusClasses } from "@/lib/utils/styles";
 import type { NodeStatus } from "@/types/infrastructure";
 import type { ServiceHealth } from "@/types/services";
 
-type StatusValue = NodeStatus | ServiceHealth | "Static" | "Verified" | "Documented" | "Ready";
+export type StatusValue = NodeStatus | ServiceHealth | "Static" | "Verified" | "Documented" | "Ready";
 
 interface StatusBadgeProps {
   status: StatusValue;

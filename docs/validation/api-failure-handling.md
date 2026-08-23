@@ -36,15 +36,26 @@ kubectl rollout status deployment/opspulse-api -n opspulse
 
 ## Evidence
 
-Not yet executed in this repository session.
+- Date: 2026-08-23
+- Action: `kubectl scale deployment opspulse-api --replicas=0 -n opspulse`
+- Frontend NodePort remained reachable at `http://homepi.local:31424/`.
+- Frontend proxy response during API outage:
+
+```text
+HTTP/1.1 503 Service Unavailable
+{"status":"unavailable","message":"OpsPulse API is currently unavailable."}
+```
+
+- API restored with: `kubectl scale deployment opspulse-api --replicas=2 -n opspulse`
+- Recovery completed with `opspulse-api` at `2/2` Ready.
 
 ## Observed Behavior
 
-Pending cluster deployment validation.
+The frontend stayed reachable while the API Deployment had zero replicas. The proxy returned a safe HTTP 503 response and the rendered Overview page displayed backend unavailable state while preserving static infrastructure content.
 
 ## Result
 
-Pending.
+Passed.
 
 ## Operational Significance
 

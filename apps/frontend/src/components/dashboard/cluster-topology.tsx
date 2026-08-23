@@ -1,10 +1,17 @@
 import { ArrowRightLeft, Cpu } from "lucide-react";
 
 import { StatusBadge } from "@/components/ui/status-badge";
+import type { StatusValue } from "@/components/ui/status-badge";
 import { nodeStatusLabel } from "@/lib/utils/styles";
 import type { ClusterNode } from "@/types/infrastructure";
 
-export function ClusterTopology({ nodes }: { nodes: ClusterNode[] }) {
+interface ClusterTopologyProps {
+  nodes: ClusterNode[];
+  sourceLabel?: string;
+  sourceStatus?: StatusValue;
+}
+
+export function ClusterTopology({ nodes, sourceLabel = "K3s Cluster · static architecture model", sourceStatus = "Documented" }: ClusterTopologyProps) {
   const [controlPlane, worker] = nodes;
 
   return (
@@ -12,9 +19,9 @@ export function ClusterTopology({ nodes }: { nodes: ClusterNode[] }) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Infrastructure Topology</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400">K3s Cluster · static architecture model</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{sourceLabel}</p>
         </div>
-        <StatusBadge status="Documented" />
+        <StatusBadge status={sourceStatus} />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-center">

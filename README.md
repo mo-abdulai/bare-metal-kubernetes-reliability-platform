@@ -53,3 +53,22 @@ See [`apps/frontend/README.md`](apps/frontend/README.md), [`apps/api/README.md`]
 | `platform/` | Platform layer configuration areas such as monitoring, logging, storage, backup, security, and GitOps |
 | `runbooks/` | Operational runbooks |
 | `scripts/` | Operational scripts |
+
+## Local Development
+
+From the repository root:
+
+```bash
+make setup
+make start
+```
+
+`make start` runs the FastAPI backend on `http://localhost:8000` and the Next.js frontend on `http://localhost:3000`. The frontend receives `OPSPULSE_API_URL=http://localhost:8000` as a server-only environment variable.
+
+For local development, the backend reads live Kubernetes inventory through:
+
+```bash
+OPSPULSE_KUBECTL="ssh mo-abdulai@homepi.local sudo k3s kubectl"
+```
+
+That value is already the default in the root `Makefile`. Override it if you want to use a local kubeconfig instead, for example `OPSPULSE_KUBECTL=kubectl make start`. Inside Kubernetes, the deployed API uses its read-only service account instead.

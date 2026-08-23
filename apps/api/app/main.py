@@ -7,7 +7,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
 from app.logging_config import configure_logging
-from app.routes import health, status
+from app.routes import cluster, health, status
 from app.schemas.status import RootResponse
 
 configure_logging()
@@ -44,3 +44,4 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 app.include_router(health.router)
 app.include_router(status.router)
+app.include_router(cluster.router)

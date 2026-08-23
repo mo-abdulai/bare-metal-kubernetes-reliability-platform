@@ -1,5 +1,5 @@
 export type NodeRole = "control-plane" | "worker";
-export type NodeStatus = "documented" | "configured" | "unknown";
+export type NodeStatus = "documented" | "configured" | "unknown" | "ready" | "not-ready";
 
 export interface InfrastructureProperty {
   label: string;
@@ -24,7 +24,7 @@ export interface ClusterNode {
 export interface PlatformSummary {
   label: string;
   value: string;
-  state: "Verified" | "Static" | "Documented";
+  state: "Verified" | "Static" | "Documented" | "Ready";
   description: string;
 }
 

@@ -2,14 +2,14 @@ import { Network } from "lucide-react";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getPlatformStatusResult } from "@/lib/api/opspulse";
+import { getClusterInventoryResult, getPlatformStatusResult } from "@/lib/api/opspulse";
 import { services } from "@/lib/data/services";
 import type { ServiceRecord } from "@/types/services";
 
 export const dynamic = "force-dynamic";
 
 export default async function ServicesPage() {
-  const apiStatus = await getPlatformStatusResult();
+  const [apiStatus, clusterInventory] = await Promise.all([getPlatformStatusResult(), getClusterInventoryResult()]);
   const serviceRows: ServiceRecord[] = [
     ...services,
     {
@@ -22,6 +22,7 @@ export default async function ServicesPage() {
       source: "backend",
     },
   ];
+  const liveServices = clusterInventory.status === "connected" ? clusterInventory.data.services : [];
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -29,7 +30,7 @@ export default async function ServicesPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-950 dark:text-slate-50">Services</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-            Service records combine documented frontend definitions with the live backend connection state exposed through the frontend proxy.
+            Service records combine frontend proxy health with live Kubernetes Service inventory from the OpsPulse namespace.
           </p>
         </div>
         <StatusBadge status={apiStatus.status === "connected" ? "connected" : "unavailable"} label={apiStatus.status === "connected" ? "API Connected" : "API Unavailable"} />
@@ -71,6 +72,38 @@ export default async function ServicesPage() {
           description="Operational service health will appear here after the platform API is connected."
         />
       )}
+
+      {liveServices.length > 0 ? (
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-surface-900">
+          <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+            <h2 className="text-sm font-semibold text-slate-950 dark:text-slate-50">Kubernetes Services</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500 dark:bg-surface-850 dark:text-slate-400">
+                <tr>
+                  <th className="px-4 py-3">Service</th>
+                  <th className="px-4 py-3">Namespace</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Ports</th>
+                  <th className="px-4 py-3">Ready Endpoints</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {liveServices.map((service) => (
+                  <tr key={`${service.namespace}/${service.name}`} className="align-top">
+                    <td className="px-4 py-4 font-medium text-slate-950 dark:text-slate-50">{service.name}</td>
+                    <td className="px-4 py-4 text-slate-600 dark:text-slate-400">{service.namespace}</td>
+                    <td className="px-4 py-4 text-slate-600 dark:text-slate-400">{service.type}</td>
+                    <td className="px-4 py-4 font-mono text-xs text-slate-700 dark:text-slate-300">{service.ports.join(", ")}</td>
+                    <td className="px-4 py-4 text-slate-600 dark:text-slate-400">{service.readyEndpoints}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

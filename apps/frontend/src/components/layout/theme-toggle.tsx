@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Theme = "dark" | "light";
 
@@ -19,7 +19,15 @@ function getInitialTheme(): Theme {
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(() => getInitialTheme());
+  const [theme, setTheme] = useState<Theme>("dark");
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setTheme(getInitialTheme());
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   function toggleTheme() {
     const nextTheme = theme === "dark" ? "light" : "dark";
