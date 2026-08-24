@@ -34,8 +34,14 @@ export default async function RunbooksPage() {
                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-300" />
               </div>
               <p className="mt-3 line-clamp-3 text-sm text-slate-600 dark:text-slate-400">{runbook.purpose}</p>
+              {runbook.reproducible ? (
+                <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                  Reproducible: <code>{runbook.reproductionCommand}</code>
+                </div>
+              ) : null}
               <div className="mt-4 flex flex-wrap gap-2">
                 {runbook.linkedSignals.slice(0, 3).map((signal) => <StatusBadge key={signal} status="Documented" label={signal} />)}
+                {runbook.reproducible ? <StatusBadge status="connected" label="Reproducible" /> : null}
               </div>
               <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Updated {runbook.lastUpdated}</p>
             </Link>

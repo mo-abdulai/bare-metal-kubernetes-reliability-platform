@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opspulse-chaos-node-taint-manual-only
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "node-taint"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "node-taint"
+data:
+  mode: manual-only
+  reason: "The framework does not modify production node taints automatically."

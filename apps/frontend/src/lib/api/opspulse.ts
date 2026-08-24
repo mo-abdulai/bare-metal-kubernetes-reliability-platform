@@ -602,6 +602,10 @@ function normalizeRunbook(body: any): Runbook {
     linkedSignals: body.linked_signals || [],
     lastUpdated: body.last_updated,
     purpose: body.purpose,
+    reproducible: body.reproducible || false,
+    reproductionCommand: body.reproduction_command || null,
+    cleanupCommand: body.cleanup_command || null,
+    expectedSignals: body.expected_signals || [],
   };
 }
 

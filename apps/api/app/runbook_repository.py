@@ -48,6 +48,8 @@ def _summary(path: Path) -> RunbookSummary:
     content = path.read_text(encoding="utf-8")
     runbook_id = path.stem
     linked = [item.strip() for item in _metadata(content, "signals").split(",") if item.strip()]
+    expected_signals = [item.strip() for item in _metadata(content, "expected_signals").split(",") if item.strip()]
+    reproduction_command = _metadata(content, "reproduction_command") or None
     return RunbookSummary(
         id=runbook_id,
         title=_title(content, runbook_id),
@@ -55,6 +57,10 @@ def _summary(path: Path) -> RunbookSummary:
         linked_signals=linked,
         last_updated=_metadata(content, "last_updated") or "unknown",
         purpose=_extract_section(content, "Purpose").splitlines()[0] if _extract_section(content, "Purpose") else "",
+        reproducible=_metadata(content, "reproducible").lower() == "true",
+        reproduction_command=reproduction_command,
+        cleanup_command=_metadata(content, "cleanup_command") or None,
+        expected_signals=expected_signals,
     )
 
 
@@ -87,6 +93,21 @@ RUNBOOK_MAPPINGS = {
     "API unavailable": "api-unavailable",
     "opspulse-api": "api-unavailable",
     "DNSConfigForming": "dns-resolution",
+    "ImagePullBackOff": "imagepullbackoff",
+    "ErrImagePull": "imagepullbackoff",
+    "Readiness probe failed": "failed-healthcheck",
+    "Liveness probe failed": "failed-healthcheck",
+    "configmap": "missing-configmap",
+    "secret": "missing-secret",
+    "node affinity": "node-affinity",
+    "taint": "node-taint",
+    "quota": "resource-quota",
+    "insufficient": "insufficient-resources",
+    "unbound": "unbound-pvc",
+    "PersistentVolumeClaim": "unbound-pvc",
+    "Init:CrashLoopBackOff": "init-container-failure",
+    "init container": "init-container-failure",
+    "runtime error": "runtime-error",
 }
 
 

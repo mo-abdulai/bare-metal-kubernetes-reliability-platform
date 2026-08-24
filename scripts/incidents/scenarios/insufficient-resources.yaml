@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: opspulse-chaos-insufficient-resources
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "insufficient-resources"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "insufficient-resources"
+spec:
+  restartPolicy: Never
+  containers:
+    - name: impossible-request
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      resources:
+        requests:
+          cpu: "128"
+          memory: 512Gi
+        limits:
+          cpu: "128"
+          memory: 512Gi

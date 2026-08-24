@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-chaos-imagepullbackoff
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "imagepullbackoff"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "imagepullbackoff"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opspulse-chaos-imagepullbackoff
+  template:
+    metadata:
+      labels:
+        app: opspulse-chaos-imagepullbackoff
+        opspulse.io/incident-test: "true"
+        opspulse.io/scenario: "imagepullbackoff"
+      annotations:
+        opspulse.io/purpose: "incident-reproduction"
+        opspulse.io/runbook: "imagepullbackoff"
+    spec:
+      containers:
+        - name: invalid-image
+          image: registry.invalid/opspulse/this-image-does-not-exist:never
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 20m
+              memory: 32Mi

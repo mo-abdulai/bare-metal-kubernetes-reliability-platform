@@ -113,6 +113,10 @@ class RunbookSummary(BaseModel):
     linked_signals: list[str]
     last_updated: str
     purpose: str
+    reproducible: bool = False
+    reproduction_command: str | None = None
+    cleanup_command: str | None = None
+    expected_signals: list[str] = Field(default_factory=list)
 
 
 class RunbookDetail(RunbookSummary):

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-chaos-oomkilled
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "oomkilled"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "oomkilled"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opspulse-chaos-oomkilled
+  template:
+    metadata:
+      labels:
+        app: opspulse-chaos-oomkilled
+        opspulse.io/incident-test: "true"
+        opspulse.io/scenario: "oomkilled"
+      annotations:
+        opspulse.io/purpose: "incident-reproduction"
+        opspulse.io/runbook: "oomkilled"
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: memory-limit
+          image: python:3.12-alpine
+          command:
+            - python
+            - -c
+            - |
+              import time
+              print("opspulse oomkilled reproduction allocating memory", flush=True)
+              chunks = []
+              while True:
+                  chunks.append(bytearray(1024 * 1024))
+                  time.sleep(0.02)
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi

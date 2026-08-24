@@ -153,7 +153,20 @@ export default async function RunbookDetailPage({ params }: RunbookDetailPagePro
           {runbook.linkedSignals.map((signal) => (
             <StatusBadge key={signal} status="Documented" label={signal} />
           ))}
+          {runbook.reproducible ? <StatusBadge status="connected" label="Reproducible" /> : null}
         </div>
+        {runbook.reproducible ? (
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
+              <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Reproduce</p>
+              <code className="mt-2 block overflow-x-auto text-xs text-slate-900 dark:text-slate-100">{runbook.reproductionCommand}</code>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
+              <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Cleanup</p>
+              <code className="mt-2 block overflow-x-auto text-xs text-slate-900 dark:text-slate-100">{runbook.cleanupCommand}</code>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">

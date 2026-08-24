@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-chaos-crashloopbackoff
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "crashloopbackoff"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "crashloopbackoff"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opspulse-chaos-crashloopbackoff
+  template:
+    metadata:
+      labels:
+        app: opspulse-chaos-crashloopbackoff
+        opspulse.io/incident-test: "true"
+        opspulse.io/scenario: "crashloopbackoff"
+      annotations:
+        opspulse.io/purpose: "incident-reproduction"
+        opspulse.io/runbook: "crashloopbackoff"
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: crashloop
+          image: busybox:1.36
+          command: ["sh", "-c", "echo 'opspulse crashloopbackoff reproduction'; exit 42"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-chaos-runtime-error
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "runtime-error"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "runtime-error"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opspulse-chaos-runtime-error
+  template:
+    metadata:
+      labels:
+        app: opspulse-chaos-runtime-error
+        opspulse.io/incident-test: "true"
+        opspulse.io/scenario: "runtime-error"
+      annotations:
+        opspulse.io/purpose: "incident-reproduction"
+        opspulse.io/runbook: "runtime-error"
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: app
+          image: python:3.12-alpine
+          command:
+            - python
+            - -c
+            - |
+              import time
+              print("opspulse runtime error reproduction starting", flush=True)
+              time.sleep(2)
+              raise RuntimeError("deterministic OpsPulse incident reproduction error")
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

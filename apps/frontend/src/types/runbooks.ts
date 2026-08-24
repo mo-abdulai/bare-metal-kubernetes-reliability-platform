@@ -7,6 +7,10 @@ export interface Runbook {
   linkedSignals: string[];
   lastUpdated: string;
   purpose: string;
+  reproducible: boolean;
+  reproductionCommand: string | null;
+  cleanupCommand: string | null;
+  expectedSignals: string[];
 }
 
 export interface RunbookDetail extends Runbook {

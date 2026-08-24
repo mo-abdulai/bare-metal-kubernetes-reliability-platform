@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-chaos-failed-healthcheck
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "failed-healthcheck"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "failed-healthcheck"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opspulse-chaos-failed-healthcheck
+  template:
+    metadata:
+      labels:
+        app: opspulse-chaos-failed-healthcheck
+        opspulse.io/incident-test: "true"
+        opspulse.io/scenario: "failed-healthcheck"
+      annotations:
+        opspulse.io/purpose: "incident-reproduction"
+        opspulse.io/runbook: "failed-healthcheck"
+    spec:
+      containers:
+        - name: http
+          image: python:3.12-alpine
+          command: ["python", "-m", "http.server", "8080"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /not-ready
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 5m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi

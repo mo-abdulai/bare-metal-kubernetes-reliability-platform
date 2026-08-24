@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-chaos-service-no-endpoints
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "service-no-endpoints"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "service-no-endpoints"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opspulse-chaos-service-no-endpoints
+  template:
+    metadata:
+      labels:
+        app: opspulse-chaos-service-no-endpoints
+        endpoint-role: actual
+        opspulse.io/incident-test: "true"
+        opspulse.io/scenario: "service-no-endpoints"
+      annotations:
+        opspulse.io/purpose: "incident-reproduction"
+        opspulse.io/runbook: "service-no-endpoints"
+    spec:
+      containers:
+        - name: http
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opspulse-chaos-service
+  namespace: opspulse-chaos
+  labels:
+    opspulse.io/incident-test: "true"
+    opspulse.io/scenario: "service-no-endpoints"
+  annotations:
+    opspulse.io/purpose: "incident-reproduction"
+    opspulse.io/runbook: "service-no-endpoints"
+spec:
+  selector:
+    endpoint-role: intentionally-missing
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

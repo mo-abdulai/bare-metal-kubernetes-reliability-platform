@@ -1,6 +1,10 @@
 <!-- category: Resource Pressure -->
 <!-- signals: OOMKilled, memory pressure, container restart -->
 <!-- last_updated: 2026-08-23 -->
+<!-- reproducible: true -->
+<!-- reproduction_command: ./scripts/incidents/incident.sh oomkilled -->
+<!-- cleanup_command: ./scripts/incidents/cleanup.sh oomkilled -->
+<!-- expected_signals: OOMKilled, memory limit exceeded, restart count increase, Kubernetes events -->
 # Runbook: OOMKilled
 
 ## Purpose
@@ -59,3 +63,27 @@ Escalate if memory pressure appears on both nodes or affects Prometheus, Loki, o
 
 - Keep memory requests and limits realistic for Raspberry Pi capacity.
 - Add validation exercises for memory-bound workloads.
+
+## Reproduction / Validation
+
+This incident can be safely reproduced using the OpsPulse incident framework.
+
+Reproduction commands are intended only for the dedicated OpsPulse test namespace and must not be applied directly to production workloads.
+
+```bash
+./scripts/incidents/incident.sh oomkilled
+```
+
+Expected observations:
+
+- Container terminates with `OOMKilled`.
+- Restart count increases.
+- Kubernetes events capture restart evidence.
+- Prometheus metrics reflect container restart behavior.
+- Loki receives relevant workload logs.
+
+Cleanup:
+
+```bash
+./scripts/incidents/cleanup.sh oomkilled
+```

@@ -97,11 +97,11 @@ def get_metrics_summary() -> MetricsSummary:
 
     desired = {
         (sample.metric.get("namespace", "unknown"), sample.metric.get("deployment", "unknown")): sample.value
-        for sample in client.query('kube_deployment_spec_replicas{namespace="opspulse"}')
+        for sample in client.query('kube_deployment_spec_replicas{namespace=~"opspulse|opspulse-chaos"}')
     }
     available = {
         (sample.metric.get("namespace", "unknown"), sample.metric.get("deployment", "unknown")): sample.value
-        for sample in client.query('kube_deployment_status_replicas_available{namespace="opspulse"}')
+        for sample in client.query('kube_deployment_status_replicas_available{namespace=~"opspulse|opspulse-chaos"}')
     }
     deployments = [
         MetricsDeployment(
@@ -121,11 +121,11 @@ def get_metrics_summary() -> MetricsSummary:
             container=sample.metric.get("container", "unknown"),
             restarts=sample.value,
         )
-        for sample in client.query('kube_pod_container_status_restarts_total{namespace="opspulse"}')
+        for sample in client.query('kube_pod_container_status_restarts_total{namespace=~"opspulse|opspulse-chaos"}')
     ]
     pod_phases = [
         MetricsPodPhase(phase=sample.metric.get("phase", "unknown"), count=sample.value)
-        for sample in client.query('sum by (phase) (kube_pod_status_phase{namespace="opspulse"})')
+        for sample in client.query('sum by (phase) (kube_pod_status_phase{namespace=~"opspulse|opspulse-chaos"})')
     ]
 
     api_up = any(sample.value == 1 for sample in client.query('up{job="opspulse-api"}'))

@@ -61,8 +61,8 @@ class LokiClient:
         end = datetime.now(tz=UTC)
         start = end - timedelta(hours=6)
         query = (
-            '{namespace="opspulse", app=~"opspulse-api|opspulse-web"} '
-            '|~ "(?i)(error|failed|failure|timeout|unavailable|exception)"'
+            '{namespace=~"opspulse|opspulse-chaos"} '
+            '|~ "(?i)(error|failed|failure|timeout|unavailable|exception|opspulse)"'
         )
         body = self._query_range(query=query, start=start, end=end, limit=bounded_limit)
         entries: list[RecentLogEntry] = []

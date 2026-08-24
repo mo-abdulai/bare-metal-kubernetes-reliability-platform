@@ -1,6 +1,10 @@
 <!-- category: Workload Health -->
 <!-- signals: CrashLoopBackOff, BackOff, container restart -->
 <!-- last_updated: 2026-08-23 -->
+<!-- reproducible: true -->
+<!-- reproduction_command: ./scripts/incidents/incident.sh crashloopbackoff -->
+<!-- cleanup_command: ./scripts/incidents/cleanup.sh crashloopbackoff -->
+<!-- expected_signals: CrashLoopBackOff, BackOff event, restart count increase, Loki container logs -->
 # Runbook: CrashLoopBackOff
 
 ## Purpose
@@ -59,3 +63,27 @@ Escalate if repeated crashes affect multiple core platform components.
 
 - Validate manifests and startup paths before deployment.
 - Keep focused health-check tests for probe endpoints.
+
+## Reproduction / Validation
+
+This incident can be safely reproduced using the OpsPulse incident framework.
+
+Reproduction commands are intended only for the dedicated OpsPulse test namespace and must not be applied directly to production workloads.
+
+```bash
+./scripts/incidents/incident.sh crashloopbackoff
+```
+
+Expected observations:
+
+- Pod enters `CrashLoopBackOff`.
+- Restart count increases.
+- Kubernetes events capture BackOff behavior.
+- Loki receives container logs.
+- OpsPulse surfaces correlated signals.
+
+Cleanup:
+
+```bash
+./scripts/incidents/cleanup.sh crashloopbackoff
+```
