@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opspulse-api
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: opspulse-api
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: bare-metal-kubernetes-reliability-platform
+spec:
+  namespaceSelector:
+    matchNames:
+      - opspulse
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opspulse-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

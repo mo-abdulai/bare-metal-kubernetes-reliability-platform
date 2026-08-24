@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 IncidentSeverity = Literal["SEV-1", "SEV-2", "SEV-3", "SEV-4"]
 IncidentStatus = Literal["Open", "Investigating", "Mitigated", "Monitoring", "Resolved"]
-SignalSource = Literal["prometheus", "kubernetes", "loki", "workload"]
+SignalSource = Literal["prometheus", "kubernetes", "loki", "workload", "gitops"]
 
 
 class Signal(BaseModel):

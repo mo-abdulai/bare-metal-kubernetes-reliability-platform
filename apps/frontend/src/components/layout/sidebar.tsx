@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   BookOpen,
   Boxes,
+  GitBranch,
   FileText,
   Github,
   Home,
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/services", label: "Services", icon: Network },
   { href: "/incidents", label: "Incidents", icon: AlertTriangle },
   { href: "/runbooks", label: "Runbooks", icon: BookOpen },
+  { href: "/gitops", label: "GitOps", icon: GitBranch },
 ];
 
 const secondaryItems = [

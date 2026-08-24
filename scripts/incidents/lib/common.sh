@@ -10,6 +10,7 @@ CHAOS_NAMESPACE="${OPSPULSE_CHAOS_NAMESPACE:-opspulse-chaos}"
 DEFAULT_TIMEOUT="${OPSPULSE_INCIDENT_TIMEOUT:-90}"
 OPSPULSE_URL="${OPSPULSE_URL:-}"
 GRAFANA_URL="${GRAFANA_URL:-}"
+OPSPULSE_SSH_HOST="${OPSPULSE_SSH_HOST:-mo-abdulai@homepi.local}"
 
 # shellcheck source=output.sh
 source "${SCRIPT_DIR}/lib/output.sh"
@@ -29,6 +30,7 @@ SCENARIOS=(
   unbound-pvc
   init-container-failure
   runtime-error
+  argocd-drift
 )
 
 AUTOMATIC_SCENARIOS=(
@@ -74,15 +76,28 @@ detect_kubectl() {
     printf '%s\n' "${OPSPULSE_KUBECTL}"
     return 0
   fi
+
+  if command -v kubectl >/dev/null 2>&1 && kubectl cluster-info >/dev/null 2>&1; then
+    printf '%s\n' "kubectl"
+    return 0
+  fi
+
+  if command -v sudo >/dev/null 2>&1 && sudo -n k3s kubectl cluster-info >/dev/null 2>&1; then
+    printf '%s\n' "sudo k3s kubectl"
+    return 0
+  fi
+
+  if command -v ssh >/dev/null 2>&1 && ssh "${OPSPULSE_SSH_HOST}" sudo k3s kubectl cluster-info >/dev/null 2>&1; then
+    printf 'ssh %s sudo k3s kubectl\n' "${OPSPULSE_SSH_HOST}"
+    return 0
+  fi
+
   if command -v kubectl >/dev/null 2>&1; then
     printf '%s\n' "kubectl"
     return 0
   fi
-  if command -v sudo >/dev/null 2>&1 && sudo -n k3s kubectl version --client >/dev/null 2>&1; then
-    printf '%s\n' "sudo k3s kubectl"
-    return 0
-  fi
-  error "No Kubernetes client found. Set OPSPULSE_KUBECTL or install kubectl."
+
+  error "No reachable Kubernetes client found. Set OPSPULSE_KUBECTL or install kubectl."
   return 1
 }
 

@@ -108,6 +108,10 @@ RUNBOOK_MAPPINGS = {
     "Init:CrashLoopBackOff": "init-container-failure",
     "init container": "init-container-failure",
     "runtime error": "runtime-error",
+    "OutOfSync": "argocd-out-of-sync",
+    "Argo CD application": "argocd-degraded",
+    "Degraded": "argocd-degraded",
+    "rollback": "deployment-rollback",
 }
 
 

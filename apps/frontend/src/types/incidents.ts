@@ -1,6 +1,6 @@
 export type IncidentSeverity = "SEV-1" | "SEV-2" | "SEV-3" | "SEV-4";
 export type IncidentStatus = "Open" | "Investigating" | "Mitigated" | "Monitoring" | "Resolved";
-export type SignalSource = "prometheus" | "kubernetes" | "loki" | "workload";
+export type SignalSource = "prometheus" | "kubernetes" | "loki" | "workload" | "gitops";
 
 export interface Signal {
   id: string;

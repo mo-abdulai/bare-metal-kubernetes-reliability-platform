@@ -34,6 +34,7 @@ flowchart TB
         WebPods["Next.js Pods\nopspulse-web"]
         ApiSvc["opspulse-api Service\nClusterIP"]
         ApiPods["FastAPI Pods\nopspulse-api"]
+        Argo["Argo CD\nargocd namespace"]
     end
 
     K3sServer --> API
@@ -44,6 +45,8 @@ flowchart TB
     WebSvc --> WebPods
     WebPods -->|"Kubernetes DNS: opspulse-api"| ApiSvc
     ApiSvc --> ApiPods
+    Argo -->|"reconcile desired state"| API
+    ApiPods -->|"read Application CRDs"| API
     Runtime --> WebPods
     Runtime --> ApiPods
 ```
@@ -66,11 +69,12 @@ Verified from the platform description, the current environment supports:
 - Alertmanager and custom Prometheus alert rules
 - project-specific Grafana operations dashboard
 - node-level reliability and failure testing workflows
+- Argo CD declarative delivery manifests and Application status integration
 
 The following capabilities should be documented only after deployment and verification in later phases:
 
-- centralized logging
-- GitOps automation
+- centralized logging validation evidence
+- GitOps live validation evidence
 - backup and recovery workflows
 - application-specific ingress and traffic management
 - security controls beyond the baseline cluster configuration

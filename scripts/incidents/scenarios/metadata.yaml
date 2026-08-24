@@ -110,3 +110,11 @@ runtime-error:
   runbook: "runtime-error"
   cleanup: "delete scenario manifest resources"
   mode: "automatic"
+argocd-drift:
+  title: "Argo CD Drift Detection"
+  expected_state: "Manual replica drift is restored by Argo CD self-heal"
+  prometheus_signal: "deployment replica state changes and recovers"
+  loki_signal: "Argo CD Application events show reconciliation"
+  runbook: "argocd-out-of-sync"
+  cleanup: "Argo CD self-heal restores Git desired state"
+  mode: "manual-only"

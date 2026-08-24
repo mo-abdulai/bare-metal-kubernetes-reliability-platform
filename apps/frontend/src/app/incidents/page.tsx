@@ -120,7 +120,9 @@ export default async function IncidentsPage() {
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-surface-900">
         <h2 className="text-base font-semibold text-slate-950 dark:text-slate-50">Incident Candidates</h2>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Candidates are deterministic groups of related signals. Review is required before incident creation.</p>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          Candidates are retained groups of related signals. Review and promotion are required before they become active incidents.
+        </p>
         <div className="mt-4 grid gap-4 xl:grid-cols-2">
           {candidates.status === "connected" && candidates.data.length > 0 ? (
             candidates.data.map((candidate) => <CandidateCard key={candidate.candidateId} candidate={candidate} />)

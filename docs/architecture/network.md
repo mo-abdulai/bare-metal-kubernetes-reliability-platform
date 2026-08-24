@@ -61,4 +61,22 @@ Next.js frontend Pod
 
 The frontend uses the server-only `OPSPULSE_API_URL` value `http://opspulse-api:8000` inside Kubernetes. Browser-side JavaScript uses the frontend route `/api/platform/status` and does not receive the Kubernetes-internal API URL.
 
+GitOps control traffic:
+
+```text
+Argo CD
+-> GitHub repository
+-> Kubernetes API desired-state reconciliation
+```
+
+GitOps visibility traffic:
+
+```text
+OpsPulse FastAPI
+-> Kubernetes API
+-> argoproj.io Application CRDs in argocd namespace
+```
+
+OpsPulse does not expose Argo CD credentials to the browser. The frontend receives only safe Application status fields from `GET /api/gitops/status`.
+
 Later phases should expand this section as ingress, observability, centralized logging, GitOps, and additional application services are deployed and verified.

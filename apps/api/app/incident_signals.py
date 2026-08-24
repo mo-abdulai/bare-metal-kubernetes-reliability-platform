@@ -1,13 +1,18 @@
 import hashlib
+import os
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.alertmanager_client import AlertmanagerClient, AlertmanagerUnavailableError
+from app.gitops_status import GitOpsUnavailableError, get_gitops_status
 from app.kubernetes_client import KubernetesUnavailableError, get_recent_kubernetes_events
 from app.loki_client import LokiClient, LokiUnavailableError
 from app.prometheus_client import MetricsUnavailableError, get_metrics_summary
 from app.runbook_repository import suggested_runbook
 from app.schemas.incidents import ActiveAlert, IncidentCandidate, Signal
+
+SIGNAL_RETENTION_MINUTES = int(os.getenv("OPSPULSE_SIGNAL_RETENTION_MINUTES", "240"))
+_SIGNAL_CACHE: dict[str, Signal] = {}
 
 
 def _signal_id(source: str, timestamp: str, component: str, title: str) -> str:
@@ -45,6 +50,31 @@ def active_alerts() -> list[ActiveAlert]:
         return AlertmanagerClient().active_alerts()
     except AlertmanagerUnavailableError:
         return []
+
+
+def _parse_timestamp(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.now(tz=UTC)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _signals_from_cache() -> list[Signal]:
+    now = datetime.now(tz=UTC)
+    cutoff = now - timedelta(minutes=SIGNAL_RETENTION_MINUTES)
+    expired = [signal_id for signal_id, signal in _SIGNAL_CACHE.items() if _parse_timestamp(signal.timestamp) < cutoff]
+    for signal_id in expired:
+        _SIGNAL_CACHE.pop(signal_id, None)
+    return list(_SIGNAL_CACHE.values())
+
+
+def _remember_signals(signals: list[Signal]) -> list[Signal]:
+    for signal in signals:
+        _SIGNAL_CACHE[signal.id] = signal
+    return _signals_from_cache()
 
 
 def aggregate_signals(limit: int = 30) -> list[Signal]:
@@ -157,8 +187,38 @@ def aggregate_signals(limit: int = 30) -> list[Signal]:
                 )
             )
 
-    signals.sort(key=lambda item: item.timestamp, reverse=True)
-    return signals[:limit]
+    try:
+        gitops_status = get_gitops_status()
+    except GitOpsUnavailableError:
+        gitops_status = None
+    if gitops_status:
+        for application in gitops_status.applications:
+            failure_state = application.health_status in {"Degraded", "Missing"} or application.sync_status == "OutOfSync"
+            if not failure_state:
+                continue
+            title = f"Argo CD application {application.name} {application.sync_status}/{application.health_status}"
+            signals.append(
+                Signal(
+                    id=_signal_id("gitops", application.last_reconciled_at or application.revision or "", application.name, title),
+                    timestamp=application.last_reconciled_at or datetime.now(tz=UTC).isoformat(),
+                    source="gitops",
+                    severity_hint="SEV-3",
+                    component=application.name,
+                    title=title,
+                    message=f"Argo CD reports sync={application.sync_status}, health={application.health_status}.",
+                    metadata={
+                        "application": application.name,
+                        "sync_status": application.sync_status,
+                        "health_status": application.health_status,
+                        "revision": application.revision or "",
+                        "namespace": application.destination_namespace or "",
+                    },
+                )
+            )
+
+    retained_signals = _remember_signals(signals)
+    retained_signals.sort(key=lambda item: _parse_timestamp(item.timestamp), reverse=True)
+    return retained_signals[:limit]
 
 
 def _correlation_key(signal: Signal) -> str:

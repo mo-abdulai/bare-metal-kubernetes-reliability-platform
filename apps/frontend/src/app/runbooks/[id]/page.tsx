@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { CopyCommand } from "@/components/runbooks/copy-command";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getRunbook, OpsPulseApiError } from "@/lib/api/opspulse";
 
@@ -155,16 +156,10 @@ export default async function RunbookDetailPage({ params }: RunbookDetailPagePro
           ))}
           {runbook.reproducible ? <StatusBadge status="connected" label="Reproducible" /> : null}
         </div>
-        {runbook.reproducible ? (
+        {runbook.reproducible && runbook.reproductionCommand ? (
           <div className="mt-5 grid gap-3 md:grid-cols-2">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
-              <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Reproduce</p>
-              <code className="mt-2 block overflow-x-auto text-xs text-slate-900 dark:text-slate-100">{runbook.reproductionCommand}</code>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-surface-850">
-              <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Cleanup</p>
-              <code className="mt-2 block overflow-x-auto text-xs text-slate-900 dark:text-slate-100">{runbook.cleanupCommand}</code>
-            </div>
+            <CopyCommand command={runbook.reproductionCommand} label="Reproduce" />
+            {runbook.cleanupCommand ? <CopyCommand command={runbook.cleanupCommand} label="Cleanup" /> : null}
           </div>
         ) : null}
       </section>

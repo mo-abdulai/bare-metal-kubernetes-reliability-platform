@@ -57,6 +57,7 @@ Select scenario:
 12) Unbound PVC
 13) Init Container Failure
 14) Runtime Error
+15) Argo CD Drift Detection
 
 q) Quit
 EOF
@@ -77,6 +78,7 @@ EOF
     12) SCENARIO="unbound-pvc" ;;
     13) SCENARIO="init-container-failure" ;;
     14) SCENARIO="runtime-error" ;;
+    15) SCENARIO="argocd-drift" ;;
     q|Q) exit 0 ;;
     *) error "Invalid selection: ${selection}"; exit 1 ;;
   esac
@@ -232,6 +234,32 @@ EOF
 manual_only() {
   local scenario="$1"
   section "MANUAL-ONLY SCENARIO"
+  if [[ "${scenario}" == "argocd-drift" ]]; then
+    cat <<EOF
+Scenario: $(scenario_title "${scenario}")
+
+This scenario is intentionally manual because it validates Argo CD self-healing
+against a GitOps-managed workload. It should only be run after Argo CD is
+installed and the opspulse Application is Synced/Healthy.
+
+Safe drift command:
+
+sudo k3s kubectl scale deployment/opspulse-web -n opspulse --replicas=1
+
+Expected:
+Argo CD detects OutOfSync and restores the Git-desired replica count.
+
+Verification:
+
+sudo k3s kubectl get application opspulse -n argocd
+sudo k3s kubectl get deployment opspulse-web -n opspulse
+
+Runbook:
+$(runbook_path "${scenario}")
+EOF
+    return 0
+  fi
+
   cat <<EOF
 Scenario: $(scenario_title "${scenario}")
 

@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: logging-extras
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: logging-extras
+    app.kubernetes.io/part-of: bare-metal-kubernetes-reliability-platform
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:mo-abdulai/bare-metal-kubernetes-reliability-platform.git
+    targetRevision: main
+    path: platform/logging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

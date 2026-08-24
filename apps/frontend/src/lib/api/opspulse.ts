@@ -1,4 +1,5 @@
 import type { ActiveAlert, Incident, IncidentCandidate, IncidentSeverity, IncidentStatus, Signal } from "@/types/incidents";
+import type { GitOpsApplication, GitOpsStatus } from "@/types/gitops";
 import type { Runbook, RunbookDetail } from "@/types/runbooks";
 
 export interface OpsPulsePlatformStatus {
@@ -220,6 +221,16 @@ export type RunbooksResult =
   | {
       status: "connected";
       data: Runbook[];
+    }
+  | {
+      status: "unavailable";
+      message: string;
+    };
+
+export type GitOpsResult =
+  | {
+      status: "connected";
+      data: GitOpsStatus;
     }
   | {
       status: "unavailable";
@@ -616,6 +627,27 @@ function normalizeRunbookDetail(body: any): RunbookDetail {
   };
 }
 
+function normalizeGitOpsApplication(body: any): GitOpsApplication {
+  return {
+    name: body.name,
+    syncStatus: body.sync_status,
+    healthStatus: body.health_status,
+    revision: body.revision || null,
+    targetRevision: body.target_revision || null,
+    destinationNamespace: body.destination_namespace || null,
+    lastOperationPhase: body.last_operation_phase || null,
+    lastReconciledAt: body.last_reconciled_at || null,
+    currentImages: body.current_images || [],
+  };
+}
+
+function normalizeGitOpsStatus(body: any): GitOpsStatus {
+  return {
+    status: "ok",
+    applications: (body.applications || []).map(normalizeGitOpsApplication),
+  };
+}
+
 export async function getActiveAlertsResult(): Promise<AlertsResult> {
   try {
     const body = await requestJson<any[]>("/api/alerts/active", {}, 5000);
@@ -729,4 +761,12 @@ export async function getRunbooksResult(): Promise<RunbooksResult> {
 
 export async function getRunbook(id: string): Promise<RunbookDetail> {
   return normalizeRunbookDetail(await requestJson<any>(`/api/runbooks/${id}`, {}, 5000));
+}
+
+export async function getGitOpsStatusResult(): Promise<GitOpsResult> {
+  try {
+    return { status: "connected", data: normalizeGitOpsStatus(await requestJson<any>("/api/gitops/status", {}, 5000)) };
+  } catch {
+    return { status: "unavailable", message: "GitOps status is currently unavailable." };
+  }
 }

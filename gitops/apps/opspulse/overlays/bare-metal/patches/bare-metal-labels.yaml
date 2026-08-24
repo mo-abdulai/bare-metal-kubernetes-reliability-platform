@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-api
+  namespace: opspulse
+spec:
+  template:
+    metadata:
+      labels:
+        opspulse.io/environment: bare-metal
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-web
+  namespace: opspulse
+spec:
+  template:
+    metadata:
+      labels:
+        opspulse.io/environment: bare-metal

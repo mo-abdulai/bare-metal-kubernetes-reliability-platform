@@ -104,6 +104,10 @@ class KubernetesClient:
             namespaced = True
         elif path == "/api/v1/events":
             resource = "events"
+        elif path == "/apis/argoproj.io/v1alpha1/namespaces/argocd/applications":
+            resource = "applications.argoproj.io"
+            namespace = "argocd"
+            namespaced = True
 
         if not resource:
             raise KubernetesUnavailableError(f"Unsupported Kubernetes inventory path: {path}")

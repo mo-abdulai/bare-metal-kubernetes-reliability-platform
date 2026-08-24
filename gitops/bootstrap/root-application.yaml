@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opspulse-platform-root
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: opspulse-platform-root
+    app.kubernetes.io/part-of: bare-metal-kubernetes-reliability-platform
+spec:
+  project: default
+  source:
+    repoURL: git@github.com:mo-abdulai/bare-metal-kubernetes-reliability-platform.git
+    targetRevision: main
+    path: gitops/platform/argocd/applications
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import get_settings
 from app.logging_config import configure_logging
 from app.metrics import PrometheusMetricsMiddleware, metrics_response
-from app.routes import cluster, health, incidents, logs, metrics as metrics_routes, status
+from app.routes import cluster, gitops, health, incidents, logs, metrics as metrics_routes, status
 from app.schemas.status import RootResponse
 
 configure_logging()
@@ -64,3 +64,4 @@ app.include_router(cluster.router)
 app.include_router(metrics_routes.router)
 app.include_router(logs.router)
 app.include_router(incidents.router)
+app.include_router(gitops.router)

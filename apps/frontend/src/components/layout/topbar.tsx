@@ -14,6 +14,7 @@ const titles: Record<string, string> = {
   "/services": "Services",
   "/incidents": "Incidents",
   "/runbooks": "Runbooks",
+  "/gitops": "GitOps",
 };
 
 export function Topbar() {

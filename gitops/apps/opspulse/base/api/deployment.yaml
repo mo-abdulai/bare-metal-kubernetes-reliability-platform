@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opspulse-api
+  namespace: opspulse
+  labels:
+    app: opspulse-api
+    app.kubernetes.io/name: opspulse-api
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: bare-metal-kubernetes-reliability-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: opspulse-api
+  template:
+    metadata:
+      labels:
+        app: opspulse-api
+        app.kubernetes.io/name: opspulse-api
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: opspulse-api
+      containers:
+        - name: opspulse-api
+          image: opspulse-api
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: opspulse-api-config
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+                - ALL
