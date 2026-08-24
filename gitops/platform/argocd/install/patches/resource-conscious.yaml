@@ -32,11 +32,11 @@ spec:
         - name: argocd-repo-server
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
+              cpu: 100m
+              memory: 256Mi
             limits:
-              cpu: 300m
-              memory: 384Mi
+              cpu: 500m
+              memory: 768Mi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -84,3 +84,12 @@ spec:
             limits:
               cpu: 500m
               memory: 768Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  controller.repo.server.timeout.seconds: "180"
+  server.repo.server.timeout.seconds: "180"
+  reposerver.parallelism.limit: "1"
